@@ -2,7 +2,7 @@ from pyabf import abfWriter
 import numpy as np
 import pandas as pd
 import glob
-import os
+
 # Vars
 path = r'C:\Program Files (x86)\HEKA2x903\Data\PyABF'
 cclist = ['Rheo', 'ST', 'IGF', 'spiketest']  # DEPRECATED: Protocol names recognized as current-clamp measures
