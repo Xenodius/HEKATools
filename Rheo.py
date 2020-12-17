@@ -19,7 +19,7 @@ from plotnine import *
 
 
 #Search path
-path = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo'
+path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go basal parameters'
 group_paths = [x[0] for x in os.walk(path)]
 group_paths = group_paths[1:] # Slice removes root folder PyRheo leaving only subdirectories in PyRheo
 group_atfpaths = []
@@ -33,7 +33,7 @@ for count, i in enumerate(group_paths):
 for file in group_atfpaths:
     print(file)
 
-summaryfilepath = path + '\\output.xlsx'
+summaryfilepath = path + '\\Rheo_Data.xlsx'
 sweepfile = str(path + "\\sweep.xlsx") # Sweep filename
 infilepath = glob.glob(path + '\*.atf')  # Get all .atf files in 'path'
 outfilename = []

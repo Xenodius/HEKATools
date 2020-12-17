@@ -32,7 +32,8 @@ pd.set_option("display.max_columns", None)
 # pd.set_option("display.max_rows", None)
 
 #Vars
-path = r'C:\Program Files (x86)\HEKA2x903\Data\PyABF'
+#path = r'C:\Program Files (x86)\HEKA2x903\Data\PyABF'
+path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go basal parameters'
 debug = True # For print statements throughout
 series_column_names = ['Series', 'Sweeps', 'Time']
 column_range = range(1, 7, 1)
