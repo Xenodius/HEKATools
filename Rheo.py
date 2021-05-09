@@ -7,6 +7,7 @@ import xlsxwriter
 import matplotlib.pyplot as plt # Deprecate
 #from plotnine import ggplot, geom_point, aes, stat_smooth, facet_wrap
 from plotnine import *
+import pdb
 
 #### Input instructions:
 ## Adaptation of Rheo2, for analyzing whole groups
@@ -53,7 +54,7 @@ for i in infilepath:
     #print('Sweepname1:',sweepname)
     sweepname = sweepname[find_nth(sweepname, '_', 3)+1:]  # Trim filename after last_: to match Clampfit string
     # print('Sweepname2:',sweepname)
-    sweepfilename.append(sweepname) # Append trimmed filename to sweepname list for enumeration in rheoplotter
+    sweepfilename.append(sweepname) # Append trimmed filename to sweepname list for enumeration in sweepfile_parser
 
 
 # Vars
@@ -80,7 +81,7 @@ pd.set_option("display.max_columns", None)
 
 
 
-def rheoplotter(group, infile, sweepname):
+def sweepfile_parser(group, infile, sweepname):
     eventdata = pd.read_csv(infile, sep='	', header=2, index_col=False, encoding='cp1252')
     sweepfile = path + '\\' + group_dict[group] + '\\sweep.xlsx'
     sweepdata = pd.read_excel(sweepfile)
@@ -94,6 +95,8 @@ def rheoplotter(group, infile, sweepname):
     outdata = eventdata.groupby(by='Trace', axis=0).apply(lambda x: x['Time of Peak (ms)'].unique()).reset_index()
     outdata.rename(columns={0:'spiketime'}, inplace=True)  # Rename column header int:0 as str:spiketime
     # print('Events resorted into sweeps: ', '\n', outdata)
+    outdata = pd.merge(eventdata[['Trace', 'Half-width (ms)', 'Time to Peak (ms)', 'Time to Antipeak (ms)', 'Rise Tau (ms)', 'Decay Tau (ms)']],
+                       outdata, how='right', on=['Trace', 'Trace'])
 
     # Pull Antipeak Amplitude (pA) from event data, as 0 where no spikes detected.
     rheosubframe = pd.merge(eventdata[['Trace', 'Baseline (mV)', 'Antipeak Amp (mV)']], outdata, how='right', on=['Trace', 'Trace'])
@@ -119,7 +122,15 @@ def rheoplotter(group, infile, sweepname):
     # print('Outdata merging sweepdata: ', '\n', outdata)
     # Generate pA stim based on protocol (5pA per step)
     # print('Outdata: ', outdata)
-    outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor, axis=1))
+    try:
+        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor, axis=1))
+    except ValueError:
+        print('Value Error. Likely incorrect naming convention or unmatched files. \n', 'Sweep file: ', sweepfile, '\n',
+              'Input file: ', infile, '\n', 'Sweep data: ', sweepdata, '\n', 'Outdata: ', outdata, '\n',
+              'Fresh sweepdata: ', pd.read_excel(sweepfile))
+        pdb.set_trace()
+
+
     #outdata['stim_pA'] = outdata.apply(lambda row: row.Trace*stimfactor, axis=1)  # 5pa/sweep. Run after joining with sweeps
 
     # Generate Hz from spike time lists in cells of 'spiketime', from average of interevent intervals
@@ -160,8 +171,7 @@ for group, dir in enumerate(group_atfpaths):
         outfilename = os.path.splitext(os.path.basename(inputfile))[0]
         sweepfilename = outfilename[find_nth(outfilename, '_', 3)+1:]
 
-        print('group: ', group, 'n: ', n, 'inputfile: ', inputfile)
-        filedata = rheoplotter(group, inputfile, sweepfilename)
+        filedata = sweepfile_parser(group, inputfile, sweepfilename)
         filedata.insert(0, 'date', group_dict[group])
         filedata.insert(0, 'ID', outfilename)
         filedata.insert(0, 'cell', filedata['ID'].apply(lambda st: st[find_nth(st, '_', 1) + 1:find_nth(st, '_', 2)]))
@@ -169,16 +179,17 @@ for group, dir in enumerate(group_atfpaths):
         filedata.insert(0, 'group', filedata['ID'].apply(lambda st: st[find_nth(st, '_', 2) + 1:find_nth(st, '_', 3)]))
         filedata.insert(0, 'genotype', filedata['group'].apply(lambda st: st[:2]))
         filedata['group'] = filedata['group'].apply(lambda x: x[2:])
-
+        print('group: ', group, 'n: ', n, 'id: ', str(filedata['ID'].unique()), 'inputfile: ', inputfile)
         # filedata.insert(0, 'group', id_group[outfilename[n]])
-        datadict[sweepfilename] = filedata
-        datakeys.append(sweepfilename)
+        sweep_ID = str(filedata['ID'].unique())
+        datakeys.append(sweep_ID)
+        datadict[sweep_ID] = filedata
         longframe = longframe.append(filedata)
 
 # Original to analyze single day
 """for n, inputfile in enumerate(infilepath):
     print('Inputfile: ', inputfile, 'sweepfilename[n]: ', sweepfilename[n])
-    filedata = rheoplotter(inputfile, sweepfilename[n])
+    filedata = sweepfile_parser(inputfile, sweepfilename[n])
     filedata.insert(0, 'ID', outfilename[n])
     #filedata.insert(0,'cell', filedata['ID'].apply(lambda st: st[st.find('_')+1:st.find('_')+2]))
     filedata.insert(0, 'group', filedata['ID'].apply(lambda st: st[find_nth(st, '_', 2)+1:find_nth(st, '_', 3)]))
@@ -196,7 +207,7 @@ longframenan = longframe.replace(0, np.NaN) # Convert placeholders to NaN for su
 # longframenan['genotype'] = longframenan['group'].apply(lambda x: x[:2]) # Performed above instead
 
 longframenan['group'] = longframenan['group'].astype('category')
-longframenan['group'] = longframenan['group'].cat.reorder_categories(['base', 'morph', 'recov', 'morph2', 'recov2'])
+#longframenan['group'] = longframenan['group'].cat.reorder_categories(['base', 'morph', 'recov', 'morph2', 'recov2'])
 # longframemeans = longframenan.groupby(longframe['Trace'], axis=0).mean() # Take mean of all non-NaN values
 # longframemeans.set_index('Trace', inplace=True)
 # longframemeans.to_excel(writer, sheet_name='Summary')
@@ -225,28 +236,42 @@ for id in longframenan['group'].unique():
 
 
 #Gather rheobases
-rheodict = {}
+rheovoltdict = {}
+rheobasedict = {}
+# todo: This is broken because identical filenames are replacing each other.
+#  Need to use an 'atf' like ID as key instead. Move left?
 for key in datakeys:
     rheodf = datadict[key].replace(0, np.NaN)
     rheoID = str(rheodf['ID'].unique())
     rheodf = rheodf['RheobaseMax']
     rheo = str(rheodf.loc[rheodf.first_valid_index()])
-    rheodict[rheoID] = [rheo]
-rheo_df = pd.DataFrame.from_dict(rheodict, orient='index')
-rheo_df = rheo_df.reset_index()
-rheo_df.insert(0, 'cell', rheo_df['index'].apply(lambda st: st[find_nth(st, '_', 1)+1:find_nth(st, '_', 2)]))
+    rheovoltdict[rheoID] = [rheo]
+    # x = datadict[datakeys[0]]
+    # x[x['spikenum'] > 0].iloc[0]['stim_pA']
+    # Pass mask of nonzero spike number to df, all rows before first spike are dropped. Then, get stim_pA from first row.
+    rheobasedict[rheoID] = datadict[key][datadict[key]['spikenum'] > 0].iloc[0]['stim_pA']
+rheovolt_df = pd.DataFrame.from_dict(rheovoltdict, orient='index')
+rheovolt_df = rheovolt_df.reset_index().rename(columns={0:'rheo_max_volts'})
+rheobase_df = pd.DataFrame.from_dict(rheobasedict, orient='index')
+rheobase_df = rheobase_df.reset_index().rename(columns={0:'rheobase_stim_pA'})
+rheovolt_df.insert(0, 'cell', rheovolt_df['index'].apply(lambda st: st[find_nth(st, '_', 1) + 1:find_nth(st, '_', 2)]))
 #rheo_df.insert(0, 'cell', rheo_df.index.apply(lambda st: st[find_nth(st, '_', 1) + 1:find_nth(st, '_', 2)]))
 # filedata.insert(0,'cell', filedata['ID'].apply(lambda st: st[st.find('_')+1:st.find('_')+2]))
-rheo_df.insert(0, 'group', rheo_df['index'].apply(lambda st: st[find_nth(st, '_', 2) + 1:find_nth(st, '_', 3)]))
-rheo_df.insert(0, 'genotype', rheo_df['group'].apply(lambda st: st[:2]))
-rheo_df['group'] = rheo_df['group'].apply(lambda x: x[2:])
+rheovolt_df.insert(0, 'group', rheovolt_df['index'].apply(lambda st: st[find_nth(st, '_', 2) + 1:find_nth(st, '_', 3)]))
+rheovolt_df.insert(0, 'genotype', rheovolt_df['group'].apply(lambda st: st[:2]))
+rheovolt_df['group'] = rheovolt_df['group'].apply(lambda x: x[2:])
+rheodf = pd.merge(rheovolt_df, rheobase_df, on='index', how='left')
+rheodf['index'] = rheodf['index'].apply(lambda x: x.strip('[]'))
+rheodf = rheodf.rename(columns={'index':'ID'})
+rheodf.insert(0, 'date', rheodf['ID'].apply(lambda x: x[1:find_nth(x, '_', 1)]))
+
 
 
 #Write to file
 writer = pd.ExcelWriter(summaryfilepath, engine='xlsxwriter')
 longframenan.to_excel(writer, 'Longform Data', index=False)
 lf_means.to_excel(writer, 'Means')
-rheo_df.to_excel(writer, 'Rheobase')
+rheodf.to_excel(writer, 'Rheobase')
 writer.save()
 """for key in cell_df_dict:
     cell_df_dict[key].to_excel(writer, key, index=False)
