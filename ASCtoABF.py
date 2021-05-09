@@ -67,6 +67,7 @@ for index in parm_df.index:
         abfWriter.writeABF1(data, outfilepath[index], freq, units='mV')
     elif voltageclamp[index] == True:
         abfWriter.writeABF1(data, outfilepath[index], freq, units='pA')
+        # If out of range value struct_pack error, check V-Clamp/C-Clamp for wrong multiplier
 
 
 
