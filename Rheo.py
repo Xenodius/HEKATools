@@ -20,7 +20,7 @@ import pdb
 
 
 #Search path
-path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go basal parameters'
+path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go\Go new basal parameters\PyRheo'
 group_paths = [x[0] for x in os.walk(path)]
 group_paths = group_paths[1:] # Slice removes root folder PyRheo leaving only subdirectories in PyRheo
 group_atfpaths = []
@@ -79,12 +79,15 @@ print('id_group: ', id_group)"""
 # pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
 
-
+## !!!!!! ADJUST
+adjustpath = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go\Go new basal parameters\PyRheo\output.xlsx'
+xls = pd.ExcelFile(adjustpath, engine='openpyxl')
+rheobase = pd.read_excel(xls, 'Rheobase')
 
 def sweepfile_parser(group, infile, sweepname):
     eventdata = pd.read_csv(infile, sep='	', header=2, index_col=False, encoding='cp1252')
     sweepfile = path + '\\' + group_dict[group] + '\\sweep.xlsx'
-    sweepdata = pd.read_excel(sweepfile)
+    sweepdata = pd.read_excel(sweepfile, engine='openpyxl')
     #print('Sweepdata: ', '\n', sweepdata)
     #print('Sweepname: ', sweepname)
     sweepdata = sweepdata[sweepdata['FileName'].str.contains(sweepname)] # sweepname[find_nth(sweepname, '_', 2)+1:]
@@ -122,8 +125,14 @@ def sweepfile_parser(group, infile, sweepname):
     # print('Outdata merging sweepdata: ', '\n', outdata)
     # Generate pA stim based on protocol (5pA per step)
     # print('Outdata: ', outdata)
+
+    ## !!!!!!!!!!! ADJUST
+    CellID = '\'' + os.path.splitext(os.path.basename(inputfile))[0] + '\''
+    mask = rheobase['ID'] == CellID
+    adjust_value = int(rheobase[mask]['rheo_adj'])
+
     try:
-        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor, axis=1))
+        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor + adjust_value, axis=1))
     except ValueError:
         print('Value Error. Likely incorrect naming convention or unmatched files. \n', 'Sweep file: ', sweepfile, '\n',
               'Input file: ', infile, '\n', 'Sweep data: ', sweepdata, '\n', 'Outdata: ', outdata, '\n',
