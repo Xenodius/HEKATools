@@ -20,7 +20,7 @@ import pdb
 
 
 #Search path
-path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go\Go new basal parameters\PyRheo'
+path = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo'
 group_paths = [x[0] for x in os.walk(path)]
 group_paths = group_paths[1:] # Slice removes root folder PyRheo leaving only subdirectories in PyRheo
 group_atfpaths = []
@@ -80,7 +80,7 @@ print('id_group: ', id_group)"""
 pd.set_option("display.max_columns", None)
 
 ## !!!!!! ADJUST
-adjustpath = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go\Go new basal parameters\PyRheo\output.xlsx'
+adjustpath = path + '\\output.xlsx'
 xls = pd.ExcelFile(adjustpath, engine='openpyxl')
 rheobase = pd.read_excel(xls, 'Rheobase')
 
@@ -130,9 +130,11 @@ def sweepfile_parser(group, infile, sweepname):
     CellID = '\'' + os.path.splitext(os.path.basename(inputfile))[0] + '\''
     mask = rheobase['ID'] == CellID
     adjust_value = int(rheobase[mask]['rheo_adj'])
+    print('Adj:', adjust_value, CellID)
 
     try:
         outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor + adjust_value, axis=1))
+        #outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace * stimfactor, axis=1))
     except ValueError:
         print('Value Error. Likely incorrect naming convention or unmatched files. \n', 'Sweep file: ', sweepfile, '\n',
               'Input file: ', infile, '\n', 'Sweep data: ', sweepdata, '\n', 'Outdata: ', outdata, '\n',
@@ -277,7 +279,7 @@ rheodf.insert(0, 'date', rheodf['ID'].apply(lambda x: x[1:find_nth(x, '_', 1)]))
 
 
 #Write to file
-writer = pd.ExcelWriter(summaryfilepath, engine='xlsxwriter')
+writer = pd.ExcelWriter(summaryfilepath, engine='openpyxl')
 longframenan.to_excel(writer, 'Longform Data', index=False)
 lf_means.to_excel(writer, 'Means')
 rheodf.to_excel(writer, 'Rheobase')
@@ -287,72 +289,4 @@ writer.save()
 rheo_df.to_excel(writer, 'Rheobase')
 writer.save()"""
 
-#Plots
-# Stimulus frequency response
-"""for key in cell_df_dict:
-    stimhz = (ggplot(cell_df_dict[key], aes('stim_pA', 'frequency', color='ID'))
-                    + geom_point()
-                    + facet_grid('ID ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = stimhz.draw()
-    fig.savefig(str(path+ '\\cell_stimfreq_' + key + '.png'))"""
-
-# Stimulus frequency response Groups
-group_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='ID'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_stimfreq.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_stimfreq_alt.png'), dpi=1000)
-
-group_voltfreq = (ggplot(data=longframenan, mapping=aes(x='R1S1Mean', y='frequency', color='ID'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_voltfreq.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_voltfreq_alt.png'), dpi=1000)
-
-group_stimspikenum = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='spikenum', color='ID'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_stimspikenum.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_stimnum_alt.png'), dpi=1000)
-
-#Stimulus frequency response means of each unique Trace(row) x Genotype x Group combination
-group_stimfreq_means = (ggplot(data=lf_means, mapping=aes(x='stim_pA', y='frequency', color='genotype'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_stimfreq_means.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_stimfreq_means_alt.png'), dpi=1000)
-
-"""for key in group_df_dict:
-    stimhz = (ggplot(group_df_dict[key], aes('stim_pA', 'frequency', color='cell'))
-                    + geom_point()
-                    + facet_grid('group ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = stimhz.draw()
-    fig.savefig(str(path+ '\\group_stimfreq_' + key + '.png'))"""
-
-# Membrane potential frequency response
-"""for key in cell_df_dict:
-    sweepfreq = (ggplot(cell_df_dict[key], aes('R1S1Mean', 'frequency', color='ID'))
-                    + geom_point()
-                    + facet_grid('ID ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = sweepfreq.draw()
-    fig.savefig(str(path+ '\\cell_sweepfreq_' + key + '.png'))
-# Stimulus spike# response
-for key in cell_df_dict:
-    sweepfreq = (ggplot(cell_df_dict[key], aes('stim_pA', 'spikenum', color='ID'))
-                    + geom_point()
-                    + facet_grid('ID ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = sweepfreq.draw()
-    fig.savefig(str(path+ '\\cell_stimnum_' + key + '.png'))"""
 
