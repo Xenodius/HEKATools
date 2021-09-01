@@ -24,7 +24,7 @@ if os.path.exists(outputpath) == True: # If Rheo output.xlsx file is present:
     print('Importing existing analysis output file.')
     #longframenan = pd.read_excel(outputpath)
     xls = pd.ExcelFile(outputpath, engine='openpyxl')
-    longframenan = pd.read_excel(xls, 'Longform Data')
+    longframenan = pd.read_excel(xls, 'Event Data')
     longframemeans = pd.read_excel(xls, 'Means')
     rheobase = pd.read_excel(xls, 'Rheobase')
     longframe = longframenan.dropna()
@@ -146,9 +146,11 @@ for n, i in enumerate(ldflist2):
     group = i[0]['colorgroup'].unique()[0]
     fdict[group] = []
     for nn, ii in enumerate(i):
-        print('group:', n, 'cell:', nn)
+        CellID = ii['ID'].unique()[0]
+        print('group:', n, 'cell:', nn, 'ID', CellID)
         val = str(n) + '_' + str(nn)
-        fdict[group].append(ii[['stim_pA', 'spikenum']].drop_duplicates(subset='stim_pA').set_index('stim_pA'))
+        fdict[group].append(ii[['stim_pA', 'spikenum']].drop_duplicates(subset='stim_pA').fillna(0)
+                            .set_index('stim_pA').rename(columns=({'spikenum': CellID})))
 for i in fdict.keys():
     fdf = reduce(lambda df_left, df_right: pd.merge(df_left, df_right, on='stim_pA', how='outer'), fdict[i])
     fdf = fdf.dropna(how='all').sort_index(axis=0)
@@ -156,6 +158,7 @@ for i in fdict.keys():
     fdf.to_excel(writer, title)
 
 #Graphing Tables for Rn arrays (unfit)
+#todo: convert stim_pA NaN -> 0! (untested addition of fillna in df=)
 fdict = {}
 for n, i in enumerate(ldflist2):
     group = i[0]['colorgroup'].unique()[0]
@@ -165,7 +168,7 @@ for n, i in enumerate(ldflist2):
         val = str(n) + '_' + str(nn)
         #test[val] = ii[['date', 'cell', 'colorgroup', 'ID', 'Trace', 'stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA')
         #test[val] = ii[['stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA')
-        df = ii[['stim_pA', 'R1S1Mean', 'frequency']].drop_duplicates(subset='stim_pA').reset_index().drop(columns='index')
+        df = ii[['stim_pA', 'R1S1Mean', 'frequency']].drop_duplicates(subset='stim_pA').fillna(0).reset_index().drop(columns='index')
         cutindex = df['frequency'].first_valid_index()-1
         fdict[group].append(df.loc[0:cutindex].drop(columns='frequency').set_index('stim_pA'))
         #fdict[group].append(ii[['stim_pA', 'R1S1Mean', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA'))

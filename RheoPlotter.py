@@ -17,7 +17,7 @@ if os.path.exists(outputpath) == True: # If Rheo output.xlsx file is present:
     print('Importing existing analysis output file.')
     #longframenan = pd.read_excel(outputpath)
     xls = pd.ExcelFile(outputpath, engine='openpyxl')
-    longframenan = pd.read_excel(xls, 'Longform Data')
+    longframenan = pd.read_excel(xls, 'Event Data')
     longframemeans = pd.read_excel(xls, 'Means')
     rheobase = pd.read_excel(xls, 'Rheobase')
     longframe = longframenan.dropna()
@@ -105,14 +105,14 @@ for n, i in enumerate(ldflist):
 #        slice = ii['date', 'cell', 'ID', 'stim_pA', 'frequency']
 
 #test = {}
-fdflist = []
-for n, i in enumerate(ldflist2):
-    for nn, ii in enumerate(i):
-        print('group:', n, 'cell:', nn)
-        val = str(n) + '_' + str(nn)
+#fdflist = []
+#for n, i in enumerate(ldflist2):
+#    for nn, ii in enumerate(i):
+#        print('group:', n, 'cell:', nn)
+#        val = str(n) + '_' + str(nn)
         #test[val] = ii[['date', 'cell', 'colorgroup', 'ID', 'Trace', 'stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA')
         #test[val] = ii[['stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA')
-        test.append(ii[['stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA'))
+        #test.append(ii[['stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('stim_pA'))
         #slice = ii[['date', 'cell', 'ID', 'stim_pA', 'frequency']]
         #slicecols = slice.columns.tolist()
         #newcols = {}
@@ -126,10 +126,10 @@ for n, i in enumerate(ldflist2):
 #    testlist.append(test[i])
 #pd.concat(testlist, join='outer', axis=1)
 
-fdf = reduce(lambda df_left,df_right: pd.merge(df_left, df_right, on='stim_pA', how='outer'), fdflist)
-writer = pd.ExcelWriter(path + '\\graphing')
-fdf.to_excel(writer, 'Frequency')
-writer.save()
+#fdf = reduce(lambda df_left,df_right: pd.merge(df_left, df_right, on='stim_pA', how='outer'), fdflist)
+#writer = pd.ExcelWriter(path + '\\graphing')
+#fdf.to_excel(writer, 'Frequency')
+#writer.save()
 #todo: rerun Rheo.py after a groupby('ID', 'Trace').drop_duplicates
 #Create slice of dataframe with frequencies for a single cell
 #ldflist2[1][['date', 'cell', 'ID', 'Trace', 'stim_pA', 'frequency']].drop_duplicates(subset='stim_pA').set_index('Trace')
@@ -141,19 +141,19 @@ writer.save()
 fig = group_rheo_box.draw()
 fig.savefig(str(path+ '\\group_rheo_box.png'), dpi=300)"""
 
-"""date_id_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='group'))
+date_id_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='cell'))
                 + geom_point(size=0.05)
-                + facet_grid('date ~ cell', space='free')
+                + facet_grid('date ~ ', space='free')
                 #+ theme_light()
                 + theme(aspect_ratio=1/3)
                 + theme(strip_text_y= element_text(angle = 0, ha = 'left')))
 fig = date_id_stimfreq.draw()
 #fig.set_size_inches(9, 108, forward=True)
 #group_stimfreq.draw(show=True)
-fig.savefig(str(path+ '\\date-ID_stimfreq.png'), dpi=300)"""
+fig.savefig(str(path+ '\\date_stimfreq.png'), dpi=300)
 
 
-'''date_id_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='colorgroup'))
+date_id_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='colorgroup'))
                 + geom_point(size=0.05)
                 + facet_grid('ID ~ .')
                 + scale_x_continuous(limits=[0,500])
@@ -163,10 +163,10 @@ fig.savefig(str(path+ '\\date-ID_stimfreq.png'), dpi=300)"""
 fig = date_id_stimfreq.draw()
 #fig.set_size_inches(9, 108, forward=True)
 #group_stimfreq.draw(show=True)
-fig.savefig(str(path+ '\\date-ID_stimfreq_v2.png'), dpi=300)'''
+fig.savefig(str(path+ '\\date-ID_stimfreq.png'), dpi=300)
 
 # Stimulus frequency response Groups
-group_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='genotype'))
+"""group_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='genotype'))
                 + geom_point(size=0.1)
                 + facet_grid('. ~ group', space='free')
                 + scale_x_continuous(limits=[0,500])
@@ -204,7 +204,7 @@ group_stimfreq = (ggplot(data=lf_means, mapping=aes(x='stim_pA_', y='frequency_m
 fig = group_stimfreq.draw()
 fig.set_size_inches(15,6, forward=True)
 fig.savefig(str(path+ '\\group_meanSEM_stimfreq_v2.png'), dpi=1000)
-
+"""
 
 """group_stimfreq_means = (ggplot(data=lf_means, mapping=aes(x='stim_pA', y='frequency', color='genotype'))
                 + geom_point(size=0.1)

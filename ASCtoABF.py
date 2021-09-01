@@ -2,10 +2,13 @@ from pyabf import abfWriter
 import numpy as np
 import pandas as pd
 import glob
+import os
+import sys
+import ParamParse
 
 # Vars
 path = r'C:\Program Files (x86)\HEKA2x903\Data\PyABF'
-cclist = ['Rheo', 'ST', 'IGF', 'spiketest']  # DEPRECATED: Protocol names recognized as current-clamp measures
+cclist = ['Rheo', 'ST', 'IGF', 'spiketest']  # DEPRECATED BY PARAMPARSE: Protocol names recognized as current-clamp measures
 divfactor = 1/1000000000  # pA -> mV unit scalar
 volt_to_mvfactor = 1000  # 1000 for HEKA V->mV
 amp_to_picofactor = 1000000000000
@@ -21,6 +24,13 @@ def dbg(string):
 # pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
 # pd.set_option("display.max_rows", None)
+
+#Check if parameters present, if so, analyze then load xlsx. If not, break.
+if os.path.isfile(path + '\\parameters.asc') and not os.path.isfile(path + '\\parameters.xlsx'):
+    ParamParse.parse(path)
+elif not os.path.isfile(path + '\\parameters.asc'):
+    print('No parameters.asc file present in path.')
+    sys.exit()
 
 ##### Redefine and refactor 'cclist' from parameters parser
 parm_df = pd.read_excel(path + '\\parameters.xlsx', index_col=0, engine='openpyxl')

@@ -18,6 +18,8 @@ import pdb
 # Output data is written as both full dataset in long-form, as well as means for each unique Trace(row)/Genotype/Group.
 # Subfolder names are expected to be the date of the experiment.
 
+#todo: ADJUST
+#  Also fix duplicate rows for each event from event columns-- split DF and drop_duplicates the main longframe.
 
 #Search path
 path = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo'
@@ -58,7 +60,14 @@ for i in infilepath:
 
 
 # Vars
-stimfactor = 5  # Stimulus per sweep, in pA
+stimfactor = 20  # Stimulus per sweep, in pA
+
+#Rheo20s Trace->Stim dictionary map
+val = -200
+stimdict = {}
+for i in range(1, 42):
+    stimdict[i] = (val + (i - 1) * 20)
+
 # "ID" map to group, e.g. 10-21_1_002-Rheo5 : KO_Baseline
 #### Used .atf's filenames instead. For others, sweep.xlsx from parameters?
 """id_group = {'10-28_0_003-Rheo5': 'Ctrl_Baseline',
@@ -80,9 +89,9 @@ print('id_group: ', id_group)"""
 pd.set_option("display.max_columns", None)
 
 ## !!!!!! ADJUST
-adjustpath = path + '\\output.xlsx'
-xls = pd.ExcelFile(adjustpath, engine='openpyxl')
-rheobase = pd.read_excel(xls, 'Rheobase')
+#adjustpath = path + '\\output.xlsx'
+#xls = pd.ExcelFile(adjustpath, engine='openpyxl')
+#rheobase = pd.read_excel(xls, 'Rheobase')
 
 def sweepfile_parser(group, infile, sweepname):
     eventdata = pd.read_csv(infile, sep='	', header=2, index_col=False, encoding='cp1252')
@@ -127,14 +136,15 @@ def sweepfile_parser(group, infile, sweepname):
     # print('Outdata: ', outdata)
 
     ## !!!!!!!!!!! ADJUST
-    CellID = '\'' + os.path.splitext(os.path.basename(inputfile))[0] + '\''
-    mask = rheobase['ID'] == CellID
-    adjust_value = int(rheobase[mask]['rheo_adj'])
-    print('Adj:', adjust_value, CellID)
+    #CellID = '\'' + os.path.splitext(os.path.basename(inputfile))[0] + '\''
+    #mask = rheobase['ID'] == CellID
+    #adjust_value = int(rheobase[mask]['rheo_adj'])
+    #print('Adj:', adjust_value, CellID)
 
     try:
-        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor + adjust_value, axis=1))
+        #outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor + adjust_value, axis=1))
         #outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace * stimfactor, axis=1))
+        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: stimdict[row.Trace], axis=1))
     except ValueError:
         print('Value Error. Likely incorrect naming convention or unmatched files. \n', 'Sweep file: ', sweepfile, '\n',
               'Input file: ', infile, '\n', 'Sweep data: ', sweepdata, '\n', 'Outdata: ', outdata, '\n',
@@ -214,6 +224,7 @@ for group, dir in enumerate(group_atfpaths):
 
 # Convert summary page 0's to NaN for means/empty cells
 longframenan = longframe.replace(0, np.NaN) # Convert placeholders to NaN for summary statistics
+sweepframenan = longframenan.drop_duplicates(subset=['ID', 'Trace']).copy()
 # Split group ID into genotype, treatment 'group'. Convert to category to reorder for plotnine facets.
 # longframenan['genotype'] = longframenan['group'].apply(lambda x: x[:2]) # Performed above instead
 
@@ -280,7 +291,8 @@ rheodf.insert(0, 'date', rheodf['ID'].apply(lambda x: x[1:find_nth(x, '_', 1)]))
 
 #Write to file
 writer = pd.ExcelWriter(summaryfilepath, engine='openpyxl')
-longframenan.to_excel(writer, 'Longform Data', index=False)
+longframenan.to_excel(writer, 'Event Data', index=False)
+sweepframenan.to_excel(writer, 'Sweep Data', index=False)
 lf_means.to_excel(writer, 'Means')
 rheodf.to_excel(writer, 'Rheobase')
 writer.save()

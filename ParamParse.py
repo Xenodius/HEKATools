@@ -35,61 +35,62 @@ pd.set_option("display.max_columns", None)
 
 #Vars
 #path = r'C:\Program Files (x86)\HEKA2x903\Data\PyABF'
-path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go basal parameters'
-debug = True # For print statements throughout
-series_column_names = ['Series', 'Sweeps', 'Time']
-column_range = range(1, 7, 1)
-amp_column_names = ['ClampMode', 'V-pipette', 'Gain', 'C-fast', 'C-slow', 'R-series']
-amp1_column_names = {}
-amp2_column_names = {}
-for i in column_range:
-    amp1_column_names[i] = amp_column_names[i - 1] + '_1'
-    amp2_column_names[i] = amp_column_names[i - 1] + '_2'
-writer = pd.ExcelWriter(path + '\\parameters.xlsx', engine='xlsxwriter')
+def parse(path):
+    #path = r'C:\Program Files (x86)\HEKA2x903\Data\PyABF'
+    debug = True # For print statements throughout
+    series_column_names = ['Series', 'Sweeps', 'Time']
+    column_range = range(1, 7, 1)
+    amp_column_names = ['ClampMode', 'V-pipette', 'Gain', 'C-fast', 'C-slow', 'R-series']
+    amp1_column_names = {}
+    amp2_column_names = {}
+    for i in column_range:
+        amp1_column_names[i] = amp_column_names[i - 1] + '_1'
+        amp2_column_names[i] = amp_column_names[i - 1] + '_2'
+    writer = pd.ExcelWriter(path + '\\parameters.xlsx', engine='xlsxwriter')
 
-#Read line-by-line and construct series to generate Dataframe, to avoid column discarding or errors.
-paramfilepath = glob.glob(path + '\*parameter*') # Get notebook output from file including name "parameters"
-print('filepath; ', paramfilepath)
+    #Read line-by-line and construct series to generate Dataframe, to avoid column discarding or errors.
+    paramfilepath = glob.glob(path + '\*parameter*') # Get notebook output from file including name "parameters"
+    print('filepath; ', paramfilepath)
 
-df = pd.DataFrame()
-with open(paramfilepath[0], 'r') as f:
-    for line in f:
-        df = pd.concat([df, pd.DataFrame([tuple(line.strip().split('\t'))])], ignore_index=True)
-# print(df)
-seriesnum = df.iloc[0,1]  # 2nd element of first row. Number of series
-df = df.iloc[1:] # Drop first row after retrieving total seriesnum
-# print(df)
-# rows = df.shape[0]  # Number of rows
+    df = pd.DataFrame()
+    with open(paramfilepath[0], 'r') as f:
+        for line in f:
+            df = pd.concat([df, pd.DataFrame([tuple(line.strip().split('\t'))])], ignore_index=True)
+    # print(df)
+    seriesnum = df.iloc[0,1]  # 2nd element of first row. Number of series
+    df = df.iloc[1:] # Drop first row after retrieving total seriesnum
+    # print(df)
+    # rows = df.shape[0]  # Number of rows
 
-## Subset df by series, amp1, amp2 rows
-amp1_df = df[df[0].str.contains('EPC10_USB/2-1')]
-amp2_df = df[df[0].str.contains('EPC10_USB/2-2')]
-ser_df = df[~df[0].str.contains('EPC10')]
-# Rename columns
-amp1_df = amp1_df.rename(columns=amp1_column_names).drop(labels=0, axis=1)
-amp2_df = amp2_df.rename(columns=amp2_column_names).drop(labels=0, axis=1)
-ser_df = ser_df.dropna(axis=1, how='all')
-ser_df.columns = series_column_names
-ser_df['Series'] = ser_df['Series'].str.replace(r'\"', '') # Remove apostrophes from series df
-amp1_df['ClampMode_1'] = amp1_df['ClampMode_1'].str.strip()  # Remove whitespace preceding clamp mode
-amp2_df['ClampMode_2'] = amp2_df['ClampMode_2'].str.strip()
-# ser_df = ser_df.assign(Series=ser_df[0].str.replace(r'\"', '')) ### Chained assignment seems not to matter here.
-# ser_df = ser_df.loc[,ser_df[0].str.replace(r'\"', '')]
+    ## Subset df by series, amp1, amp2 rows
+    amp1_df = df[df[0].str.contains('EPC10_USB/2-1')]
+    amp2_df = df[df[0].str.contains('EPC10_USB/2-2')]
+    ser_df = df[~df[0].str.contains('EPC10')]
+    # Rename columns
+    amp1_df = amp1_df.rename(columns=amp1_column_names).drop(labels=0, axis=1)
+    amp2_df = amp2_df.rename(columns=amp2_column_names).drop(labels=0, axis=1)
+    ser_df = ser_df.dropna(axis=1, how='all')
+    ser_df.columns = series_column_names
+    ser_df['Series'] = ser_df['Series'].str.replace(r'\"', '') # Remove apostrophes from series df
+    amp1_df['ClampMode_1'] = amp1_df['ClampMode_1'].str.strip()  # Remove whitespace preceding clamp mode
+    amp2_df['ClampMode_2'] = amp2_df['ClampMode_2'].str.strip()
+    # ser_df = ser_df.assign(Series=ser_df[0].str.replace(r'\"', '')) ### Chained assignment seems not to matter here.
+    # ser_df = ser_df.loc[,ser_df[0].str.replace(r'\"', '')]
 
-if debug is True: print('Preindex: ', amp1_df)
-if debug is True: print('Preindex: ', amp2_df)
-if debug is True: print(ser_df)
+    if debug is True: print('Preindex: ', amp1_df)
+    if debug is True: print('Preindex: ', amp2_df)
+    if debug is True: print(ser_df)
 
-amp1_df.index = ser_df.index # Unify indices
-amp2_df.index = ser_df.index
-if debug is True: print('Postindex: ', amp1_df)
-if debug is True: print('Postindex: ', amp2_df)
-parm_df = ser_df.join(amp1_df, how='outer').join(amp2_df, how='outer') # Join dataframes
-parm_df.index = np.arange(1, len(parm_df)+1) # Reindex to actual series number
-if debug is True: print('Joined: ', '\n', parm_df)
+    amp1_df.index = ser_df.index # Unify indices
+    amp2_df.index = ser_df.index
+    if debug is True: print('Postindex: ', amp1_df)
+    if debug is True: print('Postindex: ', amp2_df)
+    parm_df = ser_df.join(amp1_df, how='outer').join(amp2_df, how='outer') # Join dataframes
+    parm_df.index = np.arange(1, len(parm_df)+1) # Reindex to actual series number
+    if debug is True: print('Joined: ', '\n', parm_df)
 
-parm_df.to_excel(writer, 'Parameters') # Write to excel sheet
-writer.save()
+    parm_df.to_excel(writer, 'Parameters') # Write to excel sheet
+    writer.save()
 
 
 
