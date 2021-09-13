@@ -17,8 +17,8 @@ def find_nth(hay, needle, n):
 pd.set_option("display.max_columns", None)
 
 #Search path
-path = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo'
-outputpath = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo\Rheo_Data.xlsx'
+path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go\Go new basal parameters\PyRheo'
+outputpath = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go\Go new basal parameters\PyRheo\Rheo_Data.xlsx'
 
 if os.path.exists(outputpath) == True: # If Rheo output.xlsx file is present:
     print('Importing existing analysis output file.')

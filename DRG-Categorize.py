@@ -6,13 +6,43 @@ import sys
 # Enable/disable all rows/columns or columns
 # pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
-path = r'C:\Program Files (x86)\HEKA2x903\Data\DRG'
+path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
 EventHeaders = ['Trace', 'Search', 'Category', 'State', 'Event Start', 'Baseline']
-RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3}
+RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3, 'DRG-MRamp': 1}
 
 # Walk the path
 walk = [x for x in os.walk(path)] #1= dirpath, 2 = dirnames, 3 = filenames
 groupFolders = walk[0][1] # dirnames in path
+
+#### Notes on Analysis
+# Requires:
+# Ramp ATF's
+# C2 Tau ATF's (DAC Decay first order exponential Tau)
+# C3 Tau ATF's (AP Decay fastest of 2nd order exponential Tau)
+## C1-HAC-TC xlsx with heading:
+# File Name	Trace	Trace Start	R1S1Peak	R3S1Peak	R3S1Antipeak	R1S1Mean	R2S1Mean	R3S1Mean	FilePath
+# R1 = HAC Peak, R2 = HAC Steady-state, R3 = Transient peak
+## C2-DAC xslx with heading:
+# FileName	Trace	TraceStart	R1S1Peak	R3S1Peak	R1S1Antipeak	R3S1Antipeak	R1S1Mean	R2S1Mean	R3S1Mean	FilePath
+# R1 = DAC Peak, R2 = DAC steady-state, R3 = Transient peak
+
+
+#csv fix
+"""
+walk = [x for x in os.walk(path + '\\9-7_T1')]
+wlk = []
+for i in walk[0][2]:
+    if 'csv' in i:
+        wlk.append(i)
+
+for i in wlk:
+    with open(path + '\\9-7_T1\\' + i, mode="rU") as infile:
+        reader = csv.reader(infile, delimiter=',')
+        with open(path + '\\9-7_T1\\' + i+'.atf', mode='w') as outfile:
+            writer = csv.writer(outfile, delimiter='	')
+            writer.writerows(reader)"""
+
+
 
 def find_nth(hay, needle, n):
     start = hay.find(needle)
@@ -64,7 +94,10 @@ CellGroups = pd.read_excel(path + '\\DRG.xlsx', engine='openpyxl')
 finaldata_ramps = pd.DataFrame()
 finaldata_c1 = pd.DataFrame()
 finaldata_c23 = pd.DataFrame()
-AnalysisColumns = ['C1Baseline', 'C2Baseline', 'C3Baseline', 'RampBaseline', 'C1Treat', 'C2Treat', 'C3Treat', 'RampTreat', 'C3Recov', 'RampRecov']
+#AnalysisColumns = ['C1Baseline', 'C2Baseline', 'C3Baseline', 'RampBaseline', 'C1Treat', 'C2Treat', 'C3Treat', 'RampTreat', 'C3Recov', 'RampRecov']
+AnalysisColumns = ['C1Baseline', 'C2Baseline', 'C3Baseline', 'RampBaseline', 'C2Treat', 'C3Treat', 'RampTreat',
+                   'C2Recov', 'C3Recov', 'RampRecov', 'C2Retreat', 'C3Retreat', 'RampRetreat',
+                   'C2Rerecov', 'C3Rerecov', 'RampRerecov']
 
 for date in CellGroups['Date'].dropna().unique():
     CellDate = CellGroups[CellGroups['Date'] == date]
@@ -82,7 +115,7 @@ for date in CellGroups['Date'].dropna().unique():
                 lenEventFile = len(EventFile)
                 if lenEventFile > 0:
                     print('Identified', column, '___', EventFile)
-                    eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False, encoding='cp1252')
+                    eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False, encoding='utf-8') # cp1252 -> UTF-8
                     eventdata['Delta Peak Amp (mV)'] = eventdata['Baseline (mV)'] + eventdata['Peak Amp (mV)']
                     eventdata = eventdata[['Inst. Freq. (Hz)', 'Event Start Time (ms)', 'Time to Peak (ms)',
                        'Time to Antipeak (ms)', 'Delta Peak Amp (mV)', 'Rise Tau (ms)', 'Decay Tau (ms)',
@@ -90,8 +123,11 @@ for date in CellGroups['Date'].dropna().unique():
                     efpath = EventFile[0]
                     trimloc = find_nth(efpath, date, 1)  # Date\\File index
                     trimloc2 = find_nth(efpath[trimloc:], '\\', 1) + trimloc + 5  # File index
-                    filename = efpath[trimloc2:]
-
+                    try:
+                        filename = efpath[trimloc2:(trimloc2+ find_nth(efpath[trimloc2:], '-', 2))] #clip to 2nd hyphen after DRG-MRamp
+                    except Exception as e:
+                        print(e)
+                        filename = efpath[trimloc2:]
                     eventdata['Stim (pA)'] = eventdata['Event Start Time (ms)'] / RampConvDict[filename]
                     eventdata['Rheobase'] = eventdata['Stim (pA)'].min()
                     Genotype = CellSlice['Genotype'].iloc[0]
