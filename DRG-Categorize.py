@@ -8,7 +8,7 @@ import sys
 pd.set_option("display.max_columns", None)
 path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
 EventHeaders = ['Trace', 'Search', 'Category', 'State', 'Event Start', 'Baseline']
-RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3, 'DRG-MRamp': 1}
+RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3, 'DRG-MRamp': 1, 'DRG-MRamp.atf':1}
 
 # Walk the path
 walk = [x for x in os.walk(path)] #1= dirpath, 2 = dirnames, 3 = filenames
@@ -81,7 +81,7 @@ for i in groupFolders:
             elif not 'C2' in ii and not 'C3' in ii:
                 EventFilePaths.append(ii)
 
-CellGroups = pd.read_excel(path + '\\DRG.xlsx', engine='openpyxl')
+#CellGroups = pd.read_excel(path + '\\DRG.xlsx', engine='openpyxl')
 
 #for i in nestedGroupCSV: # For day/group in list:
 #    for ii in i: # for CSV file in list:
@@ -115,18 +115,22 @@ for date in CellGroups['Date'].dropna().unique():
                 lenEventFile = len(EventFile)
                 if lenEventFile > 0:
                     print('Identified', column, '___', EventFile)
-                    eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False, encoding='utf-8') # cp1252 -> UTF-8
+                    eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False, encoding='cp1252') # cp1252 (HEKA default) or UTF-8 (Notepad++ default)
                     eventdata['Delta Peak Amp (mV)'] = eventdata['Baseline (mV)'] + eventdata['Peak Amp (mV)']
                     eventdata = eventdata[['Inst. Freq. (Hz)', 'Event Start Time (ms)', 'Time to Peak (ms)',
                        'Time to Antipeak (ms)', 'Delta Peak Amp (mV)', 'Rise Tau (ms)', 'Decay Tau (ms)',
                        'Rise Slope 10% to 90% (mV/ms)', 'Area (mV · ms)']]
                     efpath = EventFile[0]
+                    efpathend = efpath[(len(efpath)-6):]
                     trimloc = find_nth(efpath, date, 1)  # Date\\File index
                     trimloc2 = find_nth(efpath[trimloc:], '\\', 1) + trimloc + 5  # File index
-                    try:
-                        filename = efpath[trimloc2:(trimloc2+ find_nth(efpath[trimloc2:], '-', 2))] #clip to 2nd hyphen after DRG-MRamp
-                    except Exception as e:
-                        print(e)
+                    if 'T1' in efpathend or 'T2' in efpathend:
+                        try:
+                            filename = efpath[trimloc2:(trimloc2 + find_nth(efpath[trimloc2:], '-',
+                                                                            2))]  # clip to 2nd hyphen after DRG-MRamp
+                        except Exception as e:
+                            print(e)
+                    else:
                         filename = efpath[trimloc2:]
                     eventdata['Stim (pA)'] = eventdata['Event Start Time (ms)'] / RampConvDict[filename]
                     eventdata['Rheobase'] = eventdata['Stim (pA)'].min()
@@ -140,7 +144,7 @@ for date in CellGroups['Date'].dropna().unique():
                     eventdata['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
                     outdata = pd.merge(CellSlice, eventdata, how='right')
                     finaldata_ramps = finaldata_ramps.append(outdata)
-            elif 'C1Baseline' in column:
+            elif 'C1' in column:
                 print('Identified ', column)
                 C1Slice = dataC1[dataC1['File Name'].str.contains(filenum)]
                 Genotype = CellSlice['Genotype'].iloc[0]
@@ -152,7 +156,7 @@ for date in CellGroups['Date'].dropna().unique():
                 C1Slice['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
                 outdata = pd.merge(CellSlice, C1Slice, how='right')
                 finaldata_c1 = finaldata_c1.append(outdata)
-            elif 'C2Baseline' in column:
+            elif 'C2' in column:
                 print('Identified ', column)
                 C2Slice = dataC2[dataC2['File Name'].str.contains(filenum)]
                 Genotype = CellSlice['Genotype'].iloc[0]
@@ -163,52 +167,7 @@ for date in CellGroups['Date'].dropna().unique():
                 C2Slice['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
                 outdata = pd.merge(CellSlice, C2Slice, how='right')
                 finaldata_c23 = finaldata_c23.append(outdata)
-            elif 'C3Baseline' in column:
-                print('Identified ', column)
-                C3Slice = dataC3[dataC3['File Name'].str.contains(filenum)]
-                Genotype = CellSlice['Genotype'].iloc[0]
-                C3Slice['Genotype'] = Genotype
-                C3Slice['Cell'] = cell
-                C3Slice['Date'] = date
-                C3Slice['Protocol'] = column
-                C3Slice['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
-                outdata = pd.merge(CellSlice, C3Slice, how='right')
-                finaldata_c23 = finaldata_c23.append(outdata)
-            elif 'C1Treat' in column:
-                print('Identified ', column)
-                C1Slice = dataC1[dataC1['File Name'].str.contains(filenum)]
-                C1Slice['HACDiff'] = C1Slice['HACBase'] - C1Slice['HACPeak']
-                Genotype = CellSlice['Genotype'].iloc[0]
-                C1Slice['Genotype'] = Genotype
-                C1Slice['Cell'] = cell
-                C1Slice['Date'] = date
-                C1Slice['Protocol'] = column
-                C1Slice['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
-                outdata = pd.merge(CellSlice, C1Slice, how='right')
-                finaldata_c1 = finaldata_c1.append(outdata)
-            elif 'C2Treat' in column:
-                print('Identified ', column)
-                C2Slice = dataC2[dataC2['File Name'].str.contains(filenum)]
-                Genotype = CellSlice['Genotype'].iloc[0]
-                C2Slice['Genotype'] = Genotype
-                C2Slice['Cell'] = cell
-                C2Slice['Date'] = date
-                C2Slice['Protocol'] = column
-                C2Slice['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
-                outdata = pd.merge(CellSlice, C2Slice, how='right')
-                finaldata_c23 = finaldata_c23.append(outdata)
-            elif 'C3Treat' in column:
-                print('Identified ', column)
-                C3Slice = dataC3[dataC3['File Name'].str.contains(filenum)]
-                Genotype = CellSlice['Genotype'].iloc[0]
-                C3Slice['Genotype'] = Genotype
-                C3Slice['Cell'] = cell
-                C3Slice['Date'] = date
-                C3Slice['Protocol'] = column
-                C3Slice['ID'] = str(int(cell)).zfill(3) + '_' + date + '_' +  column
-                outdata = pd.merge(CellSlice, C3Slice, how='right')
-                finaldata_c23 = finaldata_c23.append(outdata)
-            elif 'C3Recov' in column:
+            elif 'C3' in column:
                 print('Identified ', column)
                 C3Slice = dataC3[dataC3['File Name'].str.contains(filenum)]
                 Genotype = CellSlice['Genotype'].iloc[0]
@@ -222,12 +181,17 @@ for date in CellGroups['Date'].dropna().unique():
         #print('hook')
 
 #Filter double marked events
-finaldata_ramps = finaldata_ramps[finaldata_ramps['Inst. Freq. (Hz)'] < 100]
+finaldata_ramps = finaldata_ramps[finaldata_ramps['Inst. Freq. (Hz)'] < 100] # Frequency cutoff
+
+#Split C2/C3's
+finaldata_c2 = finaldata_c23[finaldata_c23['Protocol'].str.contains('C2')].copy()
+finaldata_c3 = finaldata_c23[finaldata_c23['Protocol'].str.contains('C3')].copy()
 
 writer = pd.ExcelWriter(path + '\\' + 'finaldata.xlsx', engine='openpyxl')
 finaldata_ramps.to_excel(writer, 'Ramps')
 finaldata_c1.to_excel(writer, 'C1')
-finaldata_c23.to_excel(writer, 'C2_3')
+finaldata_c2.to_excel(writer, 'C2')
+finaldata_c3.to_excel(writer, 'C3')
 writer.save()
 
 print('Finished. Have some coffee.')
