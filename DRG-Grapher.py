@@ -3,19 +3,23 @@ import pandas as pd
 import os
 #from scipy import stats as scistat
 import scipy.optimize as opt
+from scipy.stats import sem
+from scipy.stats import ttest_ind
 from plotnine import *
 from openpyxl import load_workbook
 from functools import reduce
 
 pd.set_option("display.max_columns", None)
 path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
+compath = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG\combinedata.xlsx'
 xlspath = path + '\\' + 'finaldata.xlsx'
-xls = pd.ExcelFile(xlspath, engine='openpyxl')
+xls = pd.ExcelFile(compath, engine='openpyxl')
 dataramp = pd.read_excel(xls, 'Ramps')
 datac1 = pd.read_excel(xls, 'C1')
 datac2 = pd.read_excel(xls, 'C2')
 datac3 = pd.read_excel(xls, 'C3')
-datafit = pd.read_excel(xls, 'HillFit')
+datarheo = pd.read_excel(xls, 'RheoGB')
+#datafit = pd.read_excel(xls, 'HillFit')
 #datac2 = datac23[datac23['Protocol'].str.contains('C2')].copy()
 #datac3 = datac23[datac23['Protocol'].str.contains('C3')].copy()
 
@@ -28,9 +32,9 @@ bool_id_HACBase     = 0
 bool_id_C2DecayTau  = 0
 bool_id_C3DecayTau  = 0
 bool_id_ramptime    = 0
-bool_id_ramp        = 1
+bool_id_ramp        = 0
 bool_id_rampfree    = 0
-bool_id_Rheo        = 0
+bool_id_Rheo        = 1
 
 #Compensate HEKA CC gain:
 dataramp['Stim (pA)'] = dataramp['Stim (pA)']/5
@@ -44,6 +48,21 @@ dataramp['CellID'] = dataramp['Date'] + str(dataramp['Cell'])
 
 #Rheobase:
 # Groupby ID combineddata + 9-15 -> Min(Stim (pA)) -> subset -> xlsx
+datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRetreat'].index)
+datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRerecov'].index)
+datarheoMean = datarheo.groupby('Group').mean()
+#datarheoSEM = datarheo.groupby('Group').apply(lambda x: sem(x))
+datarheoSEM = datarheo.groupby('Group').sem()
+
+datarheo['Protocol'] = pd.Categorical(datarheo.Protocol, categories=['RampBaseline', 'RampTreat', 'RampRecov'])
+datarheo['Group'] = pd.Categorical(datarheo.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov'])
+
+datarheostat = pd.DataFrame.merge(datarheoMean, datarheoSEM, on='Group', how='outer', suffixes=('_mean', '_sem')).reset_index()
+datarheostat['Group'] = pd.Categorical(datarheostat.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov'])
+
+print('Ctrl Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampBaseline']['Rheobase'], datarheo[datarheo['Group']=='CtrlRampTreat']['Rheobase']))
+print('KO Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='KORampBaseline']['Rheobase'], datarheo[datarheo['Group']=='KORampTreat']['Rheobase']))
+print('Ctrl Treat vs. KO Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['Rheobase'], datarheo[datarheo['Group']=='KORampTreat']['Rheobase']))
 
 #Curve Fitting
 def ll4(x,b,c,d,e):
@@ -202,14 +221,42 @@ if bool_id_ramptime:
     fig.savefig(str(path+ '\\id_ramptime.png'), dpi=300)
 
 if bool_id_Rheo:
-    id_Rheo = (ggplot(data=dataramp, mapping=aes(x='Cell', y='Rheobase', color='Protocol'))
+    id_Rheo = (ggplot(data=datarheo, mapping=aes(x='Group', y='Rheobase', color='CellID', ymin=0, ymax=1200))
                     + geom_point(size=1)
-                    + facet_grid('Date ~ ', space='free')
+#                    + stat_summary(geom = "bar", fun_y = np.mean)
+#                    + stat_summary(geom = "errorbar", fun_data = 'mean_se')
+                    #+ geom_boxplot()
+#                    +geom_bar(aes(x='Group', y='Rheobase'), data=datarheoMean)
+#                    +geom_errorbar(aes(x='Group', y='Rheobase'), data=datarheoSEM)
+#                    + facet_grid('. ~ Genotype', space='free')
                     #+ theme_light()
-                    + theme(aspect_ratio=1/3)
-                    + theme(subplots_adjust={'right': 0.75})
-                    + theme(strip_text_y= element_text(angle = 0, ha = 'left')))
+#                    + ylim(0, 1200)
+                    + theme(aspect_ratio=2/3)
+                    + theme(subplots_adjust={'right': .98, 'bottom': 0.25})
+                    + theme(strip_text_y= element_text(angle = 0, ha = 'left'))
+                    + theme(axis_text_x= element_text(rotation=45, hjust=1)))
     fig = id_Rheo.draw()
     #fig.set_size_inches(9, 108, forward=True)
     #group_stimfreq.draw(show=True)
     fig.savefig(str(path+ '\\id_Rheo.png'), dpi=300)
+
+    mean_Rheo = (ggplot(data=datarheostat, mapping=aes(x='Group', y='Rheobase_mean', color='Group', ymin=0, ymax=1200))
+               + geom_point(size=1)
+               #                    + stat_summary(geom = "bar", fun_y = np.mean)
+               #                    + stat_summary(geom = "errorbar", fun_data = 'mean_se')
+               # + geom_boxplot()
+                +geom_bar(aes(x='Group', y='Rheobase_mean'), stat='identity')
+                +geom_errorbar(aes(x='Group', ymax='Rheobase_mean + Rheobase_sem', ymin='Rheobase_mean - Rheobase_sem'))
+                +geom_point(aes(x='Group', y='Rheobase', color='CellID'), data=datarheo)
+               #                    +geom_errorbar(aes(x='Group', y='Rheobase'), data=datarheoSEM)
+               #                    + facet_grid('. ~ Genotype', space='free')
+               # + theme_light()
+#               + ylim(0, 1200)
+               + theme(aspect_ratio=2 / 3)
+               + theme(subplots_adjust={'right': .98, 'bottom': 0.25})
+               + theme(strip_text_y=element_text(angle=0, ha='left'))
+               + theme(axis_text_x=element_text(rotation=45, hjust=1)))
+    fig = mean_Rheo.draw()
+    # fig.set_size_inches(9, 108, forward=True)
+    # group_stimfreq.draw(show=True)
+    fig.savefig(str(path + '\\id_Rheo_Means.png'), dpi=300)
