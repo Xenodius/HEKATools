@@ -6,13 +6,15 @@ import sys
 # Enable/disable all rows/columns or columns
 # pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
-path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
+#path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
+path = r'D:\Dropbox (Personal)\FileTransfers\DRG'
 EventHeaders = ['Trace', 'Search', 'Category', 'State', 'Event Start', 'Baseline']
-RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3, 'DRG-MRamp': 1, 'DRG-MRamp.atf':1}
+RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3, 'DRG-MRamp': 1, 'DRG-MRamp.atf':1, 'DRG-MRamp-2_T1.atf':1, 'DRG-MRamp-2_T2.atf':10, 'DRG-1Ramp.atf':5, 'DRG-2Ramp.atf':5}
 
 # Walk the path
 walk = [x for x in os.walk(path)] #1= dirpath, 2 = dirnames, 3 = filenames
 groupFolders = walk[0][1] # dirnames in path
+#todo: verify latest set DRG-1Ramp vs DRG-2Ramp time.
 
 #### Notes on Analysis
 # Requires:
@@ -115,7 +117,10 @@ for date in CellGroups['Date'].dropna().unique():
                 lenEventFile = len(EventFile)
                 if lenEventFile > 0:
                     print('Identified', column, '___', EventFile)
-                    eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False, encoding='cp1252') # cp1252 (HEKA default) or UTF-8 (Notepad++ default)
+                    #eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False, encoding='cp1252') # cp1252 (HEKA default) or UTF-8 (Notepad++ default)
+                    #Adjusted header for converted Events.xlsx->Atf
+                    eventdata = pd.read_csv(EventFile[0], sep='	', header=2, index_col=False,
+                                            encoding='cp1252')  # cp1252 (HEKA default) or UTF-8 (Notepad++ default)
                     eventdata['Delta Peak Amp (mV)'] = eventdata['Baseline (mV)'] + eventdata['Peak Amp (mV)']
                     eventdata = eventdata[['Inst. Freq. (Hz)', 'Event Start Time (ms)', 'Time to Peak (ms)',
                        'Time to Antipeak (ms)', 'Delta Peak Amp (mV)', 'Rise Tau (ms)', 'Decay Tau (ms)',
@@ -123,7 +128,7 @@ for date in CellGroups['Date'].dropna().unique():
                     efpath = EventFile[0]
                     efpathend = efpath[(len(efpath)-6):]
                     trimloc = find_nth(efpath, date, 1)  # Date\\File index
-                    trimloc2 = find_nth(efpath[trimloc:], '\\', 1) + trimloc + 5  # File index
+                    trimloc2 = find_nth(efpath[trimloc:], '\\', 1) + trimloc + 5  # Figle index
                     if 'T1' in efpathend or 'T2' in efpathend:
                         try:
                             filename = efpath[trimloc2:(trimloc2 + find_nth(efpath[trimloc2:], '-',
