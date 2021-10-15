@@ -34,10 +34,12 @@ bool_id_C3DecayTau  = 0
 bool_id_ramptime    = 0
 bool_id_ramp        = 0
 bool_id_rampfree    = 0
-bool_id_Rheo        = 1
+bool_id_Rheo        = 0
+bool_id_RheoDiff    = 1
+bool_id_RheoInhib   = 1
 
 #Compensate HEKA CC gain:
-dataramp['Stim (pA)'] = dataramp['Stim (pA)']/5
+#dataramp['Stim (pA)'] = dataramp['Stim (pA)']/5
 #Drop by Include column:
 #dataramporig = dataramp.copy()
 dataramp = dataramp[dataramp['Include'] > 0]
@@ -48,8 +50,30 @@ dataramp['CellID'] = dataramp['Date'] + str(dataramp['Cell'])
 
 #Rheobase:
 # Groupby ID combineddata + 9-15 -> Min(Stim (pA)) -> subset -> xlsx
-datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRetreat'].index)
-datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRerecov'].index)
+#datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRetreat'].index)
+#datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRerecov'].index)
+#datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRecov'].index)
+
+# %Inhib
+datarheoInhib = dict()
+datarheoDiff = dict()
+#for i in datarheo['CellID.1']:
+#    ldf = datarheo[datarheo['CellID.1']==i]
+#    ldf[ldf['Protocol']=='RampBaseline']
+
+for i in datarheo['CellID']:
+    try:
+        datarheoInhib[i] = datarheo[datarheo['CellID']==i][datarheo['Protocol']=='RampBaseline']['Rheobase'].iloc[0]/datarheo[datarheo['CellID'] == i][datarheo['Protocol']=='RampTreat']['Rheobase'].iloc[0]
+        datarheoDiff[i] = datarheo[datarheo['CellID']==i][datarheo['Protocol']=='RampTreat']['Rheobase'].iloc[0] - datarheo[datarheo['CellID']==i][datarheo['Protocol']=='RampBaseline']['Rheobase'].iloc[0]
+    except Exception as e:
+        print('exception:', e, 'cell:', datarheo[datarheo['CellID']==i])
+
+datarheoInhibDF = pd.DataFrame.from_dict(datarheoInhib, orient='index', columns=['RheoInhibition']).reset_index().rename(columns={'index':'CellID'})
+datarheoInhibDF['RheoInhibition'] = datarheoInhibDF['RheoInhibition'].apply(lambda x: (1-x)*100)
+datarheoDiffDF = pd.DataFrame.from_dict(datarheoDiff, orient='index', columns=['RheoDiff']).reset_index().rename(columns={'index':'CellID'})
+datarheodfs = pd.merge(datarheoDiffDF, datarheoInhibDF, how='outer', on='CellID')
+datarheo = pd.merge(datarheo, datarheodfs, how='outer', on='CellID')
+
 datarheoMean = datarheo.groupby('Group').mean()
 #datarheoSEM = datarheo.groupby('Group').apply(lambda x: sem(x))
 datarheoSEM = datarheo.groupby('Group').sem()
@@ -57,12 +81,23 @@ datarheoSEM = datarheo.groupby('Group').sem()
 datarheo['Protocol'] = pd.Categorical(datarheo.Protocol, categories=['RampBaseline', 'RampTreat', 'RampRecov'])
 datarheo['Group'] = pd.Categorical(datarheo.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov'])
 
+#Melt rheobase;
+#datareho.melt(id_vars = ['CellID', 'CellID.1', 'Genotype', 'Cell', 'Protocol', 'CellType', 'Include', 'Inst], value_vars = ['Rheobase'])
+
 datarheostat = pd.DataFrame.merge(datarheoMean, datarheoSEM, on='Group', how='outer', suffixes=('_mean', '_sem')).reset_index()
 datarheostat['Group'] = pd.Categorical(datarheostat.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov'])
 
 print('Ctrl Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampBaseline']['Rheobase'], datarheo[datarheo['Group']=='CtrlRampTreat']['Rheobase']))
 print('KO Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='KORampBaseline']['Rheobase'], datarheo[datarheo['Group']=='KORampTreat']['Rheobase']))
 print('Ctrl Treat vs. KO Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['Rheobase'], datarheo[datarheo['Group']=='KORampTreat']['Rheobase']))
+print('Inhib:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['RheoInhibition'], datarheo[datarheo['Group']=='KORampTreat']['RheoInhibition']))
+print('Diff:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['RheoDiff'], datarheo[datarheo['Group']=='KORampTreat']['RheoDiff']))
+datarheostat = datarheostat.drop(datarheostat[datarheostat['Group']=='CtrlRampBaseline'].index)
+datarheostat = datarheostat.drop(datarheostat[datarheostat['Group']=='KORampBaseline'].index)
+datarheo = datarheo.drop(datarheo[datarheo['Group']=='CtrlRampBaseline'].index)
+datarheo = datarheo.drop(datarheo[datarheo['Group']=='KORampBaseline'].index)
+
+
 
 #Curve Fitting
 def ll4(x,b,c,d,e):
@@ -260,3 +295,51 @@ if bool_id_Rheo:
     # fig.set_size_inches(9, 108, forward=True)
     # group_stimfreq.draw(show=True)
     fig.savefig(str(path + '\\id_Rheo_Means.png'), dpi=300)
+
+if bool_id_RheoInhib:
+    mean_RheoInhibition = (ggplot(data=datarheostat, mapping=aes(x='Group', y='RheoInhibition_mean', color='Group', ymin=0, ymax=100))
+                 + geom_point(size=1)
+                 #                    + stat_summary(geom = "bar", fun_y = np.mean)
+                 #                    + stat_summary(geom = "errorbar", fun_data = 'mean_se')
+                 # + geom_boxplot()
+                 + geom_bar(aes(x='Group', y='RheoInhibition_mean'), stat='identity')
+                 + geom_errorbar(
+                aes(x='Group', ymax='RheoInhibition_mean + RheoInhibition_sem', ymin='RheoInhibition_mean - RheoInhibition_sem'))
+                 + geom_point(aes(x='Group', y='RheoInhibition', color='CellID'), data=datarheo)
+                 #                    +geom_errorbar(aes(x='Group', y='Rheobase'), data=datarheoSEM)
+                 #                    + facet_grid('. ~ Genotype', space='free')
+                 # + theme_light()
+                 #               + ylim(0, 1200)
+                 + theme(aspect_ratio= 3/2)
+                 + theme(subplots_adjust={'right': .98, 'bottom': 0.25})
+                 + theme(strip_text_y=element_text(angle=0, ha='left'))
+                 + theme(axis_text_x=element_text(rotation=45, hjust=1)))
+    fig = mean_RheoInhibition.draw()
+    # fig.set_size_inches(9, 108, forward=True)
+    # group_stimfreq.draw(show=True)
+    fig.savefig(str(path + '\\id_RheoInhibition_Means.png'), dpi=300)
+
+if bool_id_RheoDiff:
+    mean_RheoDiff = (ggplot(data=datarheostat,
+                                  mapping=aes(x='Group', y='RheoDiff_mean', color='Group', ymin=0, ymax=1000))
+                           + geom_point(size=1)
+                           #                    + stat_summary(geom = "bar", fun_y = np.mean)
+                           #                    + stat_summary(geom = "errorbar", fun_data = 'mean_se')
+                           # + geom_boxplot()
+                           + geom_bar(aes(x='Group', y='RheoDiff_mean'), stat='identity')
+                           + geom_errorbar(
+                aes(x='Group', ymax='RheoDiff_mean + RheoDiff_sem',
+                    ymin='RheoDiff_mean - RheoDiff_sem'))
+                           + geom_point(aes(x='Group', y='RheoDiff', color='CellID'), data=datarheo)
+                           #                    +geom_errorbar(aes(x='Group', y='Rheobase'), data=datarheoSEM)
+                           #                    + facet_grid('. ~ Genotype', space='free')
+                           # + theme_light()
+                           #               + ylim(0, 1200)
+                           + theme(aspect_ratio=3/2)
+                           + theme(subplots_adjust={'right': .98, 'bottom': 0.25})
+                           + theme(strip_text_y=element_text(angle=0, ha='left'))
+                           + theme(axis_text_x=element_text(rotation=45, hjust=1)))
+    fig = mean_RheoDiff.draw()
+    # fig.set_size_inches(9, 108, forward=True)
+    # group_stimfreq.draw(show=True)
+    fig.savefig(str(path + '\\id_RheoDiff_Means.png'), dpi=300)
