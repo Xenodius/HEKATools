@@ -10,15 +10,13 @@ from openpyxl import load_workbook
 from functools import reduce
 
 pd.set_option("display.max_columns", None)
-path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
+path = r'D:\Dropbox (Personal)\FileTransfers\DRG'
 compath = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG\combinedata.xlsx'
+scompath = r'D:\Dropbox (Personal)\FileTransfers\DRG\combinedata.xlsx'
 xlspath = path + '\\' + 'finaldata.xlsx'
-xls = pd.ExcelFile(compath, engine='openpyxl')
-dataramp = pd.read_excel(xls, 'Ramps')
-datac1 = pd.read_excel(xls, 'C1')
-datac2 = pd.read_excel(xls, 'C2')
-datac3 = pd.read_excel(xls, 'C3')
-datarheo = pd.read_excel(xls, 'RheoGB')
+scrippspath = r'D:\Dropbox (Personal)\FileTransfers\DRG' + '\\finaldata.xlsx' #combinedata.xslx???
+
+#datarheo = pd.read_excel(xls, 'RheoGB') # Moved below after creating datarheo2
 #datafit = pd.read_excel(xls, 'HillFit')
 #datac2 = datac23[datac23['Protocol'].str.contains('C2')].copy()
 #datac3 = datac23[datac23['Protocol'].str.contains('C3')].copy()
@@ -35,8 +33,33 @@ bool_id_ramptime    = 0
 bool_id_ramp        = 0
 bool_id_rampfree    = 0
 bool_id_Rheo        = 1
+bool_id_RheoInhibDiff = 1
+bool_id_genRheoBase = 0
+
+#Rheobase:
+"""# Groupby ID combineddata + 9-15 -> Min(Stim (pA)) -> subset -> xlsx
+path = r'D:\Dropbox (Personal)\FileTransfers\DRG'
+scrippspath = r'D:\Dropbox (Personal)\FileTransfers\DRG' + '\\finaldata.xlsx' #combinedata.xslx???
+xls = pd.ExcelFile(scrippspath, engine='openpyxl')
+dataramp = pd.read_excel(xls, 'Ramps')
+datac1 = pd.read_excel(xls, 'C1')
+datac2 = pd.read_excel(xls, 'C2')
+datac3 = pd.read_excel(xls, 'C3')"""
 
 if bool_id_genRheoBase:
+    # xls = pd.ExcelFile(compath, engine='openpyxl')
+    xls = pd.ExcelFile(scrippspath, engine='openpyxl')
+    dataramp = pd.read_excel(xls, 'Ramps')
+    datac1 = pd.read_excel(xls, 'C1')
+    datac2 = pd.read_excel(xls, 'C2')
+    datac3 = pd.read_excel(xls, 'C3')
+    dataramp['CellID'] = dataramp['Date'] + '_' + dataramp.astype(str)['Cell'] + '_' + dataramp['Protocol']
+    # Rheobas Contd.
+    rheodf = dataramp[
+        ['Date', 'Genotype', 'Cell', 'CellID', 'Protocol', 'CellType', 'Include', 'Inst. Freq. (Hz)', 'Stim (pA)',
+         'Event Start Time (ms)']]
+    rheodf2 = rheodf.groupby('CellID').min().rename(columns={'Stim (pA)': 'Rheobase'})
+
     book = load_workbook(scrippspath)
     writer = pd.ExcelWriter(scrippspath, engine='openpyxl')
     writer.book = book
@@ -45,7 +68,7 @@ if bool_id_genRheoBase:
     writer.save()
     writer.close()
 
-xls = pd.ExcelFile(scrippspath, engine='openpyxl')
+xls = pd.ExcelFile(scompath, engine='openpyxl')
 dataramp = pd.read_excel(xls, 'Ramps')
 datac1 = pd.read_excel(xls, 'C1')
 datac2 = pd.read_excel(xls, 'C2')
@@ -54,24 +77,28 @@ datarheo = pd.read_excel(xls, 'RheoGB')
 
 #Filtering
 #Compensate HEKA CC gain:
-dataramp['Stim (pA)'] = dataramp['Stim (pA)']/5
+#dataramp['Stim (pA)'] = dataramp['Stim (pA)']/5
+
 #Drop by Include column:
 #dataramporig = dataramp.copy()
 dataramp = dataramp[dataramp['Include'] > 0]
+
 #Add CellID for funky free-axis facets
-#todo: maybe just make iterator to plot individually...
-dataramp['CellID'] = dataramp['Date'] + str(dataramp['Cell'])
+dataramp['CellID'] = dataramp['Date'] + '_' + dataramp.astype(str)['Cell'] + '_' + dataramp['Protocol']
+
 #dataramp = dataramp.replace('RampTreat', 'RampBase').replace('RampBaseline', 'RampTreat')
 #Convert dates
 dataramp['Date'] = dataramp['Date'].str.replace('9-15_T1', '9-15').str.replace('9-15_T2', '9-15').str.replace('9-21_T1', '9-21').str.replace('9-21_T2', '9-21').str.replace('9-23_T1', '9-23').str.replace('9-23_T2', '9-23').str.replace('9-29_T1', '9-29').str.replace('9-29_T2', '9-29')
 datac1['Date'] = datac1['Date'].str.replace('9-15_T1', '9-15').str.replace('9-15_T2', '9-15').str.replace('9-21_T1', '9-21').str.replace('9-21_T2', '9-21').str.replace('9-23_T1', '9-23').str.replace('9-23_T2', '9-23').str.replace('9-29_T1', '9-29').str.replace('9-29_T2', '9-29')
 datac2['Date'] = datac2['Date'].str.replace('9-15_T1', '9-15').str.replace('9-15_T2', '9-15').str.replace('9-21_T1', '9-21').str.replace('9-21_T2', '9-21').str.replace('9-23_T1', '9-23').str.replace('9-23_T2', '9-23').str.replace('9-29_T1', '9-29').str.replace('9-29_T2', '9-29')
 datac3['Date'] = datac3['Date'].str.replace('9-15_T1', '9-15').str.replace('9-15_T2', '9-15').str.replace('9-21_T1', '9-21').str.replace('9-21_T2', '9-21').str.replace('9-23_T1', '9-23').str.replace('9-23_T2', '9-23').str.replace('9-29_T1', '9-29').str.replace('9-29_T2', '9-29')
+datarheo['Date'] = datarheo['Date'].str.replace('9-15_T1', '9-15').str.replace('9-15_T2', '9-15').str.replace('9-21_T1', '9-21').str.replace('9-21_T2', '9-21').str.replace('9-23_T1', '9-23').str.replace('9-23_T2', '9-23').str.replace('9-29_T1', '9-29').str.replace('9-29_T2', '9-29')
+
 # Remove dates for subplotting
-dataramp = dataramp[(dataramp['Date']=='9-21') | (dataramp['Date']=='9-15')]
-datac1 = datac1[(datac1['Date']=='9-15') | (datac1['Date']=='9-21')]
-datac2 = datac2[(datac2['Date']=='9-15') | (datac2['Date']=='9-21')]
-datac3 = datac3[(datac3['Date']=='9-15') | (datac3['Date']=='9-21')]
+#dataramp = dataramp[(dataramp['Date']=='9-21') | (dataramp['Date']=='9-15')]
+#datac1 = datac1[(datac1['Date']=='9-15') | (datac1['Date']=='9-21')]
+#datac2 = datac2[(datac2['Date']=='9-15') | (datac2['Date']=='9-21')]
+#datac3 = datac3[(datac3['Date']=='9-15') | (datac3['Date']=='9-21')]
 
 
 #Rheobase Stats:
@@ -79,16 +106,43 @@ datac3 = datac3[(datac3['Date']=='9-15') | (datac3['Date']=='9-21')]
 #datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRetreat'].index)
 #datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRerecov'].index)
 #datarheo = datarheo.drop(datarheo[datarheo['Protocol']=='RampRecov'].index)
+datarheo['CellGroup'] = datarheo.apply(lambda x: '%s_%s_%s' % (x['Genotype'], x['Date'], x['Cell'],), axis=1) #String concat
+datarheo['Group'] = datarheo.apply(lambda x: '%s_%s' % (x['Genotype'], x['Protocol']), axis=1) #String concat
 
-# %Inhib
+
+#New RheoDiffInhib:
 datarheoInhib = dict()
 datarheoDiff = dict()
 #for i in datarheo['CellID.1']:
 #    ldf = datarheo[datarheo['CellID.1']==i]
 #    ldf[ldf['Protocol']=='RampBaseline']
+dfrheo = pd.DataFrame()
+for i in datarheo['CellGroup'].unique():
+    dfs = datarheo[datarheo['CellGroup'] == i].copy()
+    checktreat = True in dfs['Protocol'].str.contains('RampBaseline').unique() and True in dfs['Protocol'].str.contains('RampTreat').unique() # If RampTreat/Baseline in slice:
+    checkretreat = True in dfs['Protocol'].str.contains('RampRecov').unique() and True in dfs['Protocol'].str.contains('RampRetreat').unique() # If RampRetreat/Recov in slice:
 
+    if checktreat:
+        rowtreat = dfs[dfs['Protocol'] == 'RampTreat'].index[0]
+        inhibval = dfs[dfs['Protocol']=='RampBaseline']['Rheobase'].iloc[0] / dfs[dfs['Protocol']=='RampTreat']['Rheobase'].iloc[0]
+        diffval = dfs[dfs['Protocol']=='RampTreat']['Rheobase'].iloc[0] - dfs[dfs['Protocol']=='RampBaseline']['Rheobase'].iloc[0]
+        dfs.loc[rowtreat, 'RheoDiff'] = diffval
+        dfs.loc[rowtreat, 'RheoInhibition'] = inhibval*100
+    if checkretreat:
+        rowretreat = dfs[dfs['Protocol'] == 'RampRetreat'].index[0]
+        reinhibval = dfs[dfs['Protocol'] == 'RampRecov']['Rheobase'].iloc[0] / dfs[dfs['Protocol'] == 'RampRetreat']['Rheobase'].iloc[0]
+        rediffval = dfs[dfs['Protocol'] == 'RampRetreat']['Rheobase'].iloc[0] - dfs[dfs['Protocol'] == 'RampRecov']['Rheobase'].iloc[0]
+        dfs.loc[rowretreat, 'RheoDiff'] = rediffval
+        dfs.loc[rowretreat, 'RheoInhibition'] = reinhibval*100
+    if checktreat or checkretreat:
+        dfrheo = pd.concat([dfrheo, dfs], axis=0, ignore_index=True)
+        print(i)
+datarheo = dfrheo.copy()
+datarheo.drop(datarheo.columns[datarheo.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True)
+"""       
 for i in datarheo['CellID']:
     try:
+        print(i)
         datarheoInhib[i] = datarheo[datarheo['CellID']==i][datarheo['Protocol']=='RampBaseline']['Rheobase'].iloc[0]/datarheo[datarheo['CellID'] == i][datarheo['Protocol']=='RampTreat']['Rheobase'].iloc[0]
         datarheoDiff[i] = datarheo[datarheo['CellID']==i][datarheo['Protocol']=='RampTreat']['Rheobase'].iloc[0] - datarheo[datarheo['CellID']==i][datarheo['Protocol']=='RampBaseline']['Rheobase'].iloc[0]
     except Exception as e:
@@ -99,29 +153,31 @@ datarheoInhibDF['RheoInhibition'] = datarheoInhibDF['RheoInhibition'].apply(lamb
 datarheoDiffDF = pd.DataFrame.from_dict(datarheoDiff, orient='index', columns=['RheoDiff']).reset_index().rename(columns={'index':'CellID'})
 datarheodfs = pd.merge(datarheoDiffDF, datarheoInhibDF, how='outer', on='CellID')
 datarheo = pd.merge(datarheo, datarheodfs, how='outer', on='CellID')
+"""
 
 datarheoMean = datarheo.groupby('Group').mean()
 #datarheoSEM = datarheo.groupby('Group').apply(lambda x: sem(x))
 datarheoSEM = datarheo.groupby('Group').sem()
 
-datarheo['Protocol'] = pd.Categorical(datarheo.Protocol, categories=['RampBaseline', 'RampTreat', 'RampRecov', 'RampRetreat', 'RampRerecov'])
-datarheo['Group'] = pd.Categorical(datarheo.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov'])
-
-#Melt rheobase;
-#datareho.melt(id_vars = ['CellID', 'CellID.1', 'Genotype', 'Cell', 'Protocol', 'CellType', 'Include', 'Inst], value_vars = ['Rheobase'])
+datarheo['Protocol'] = pd.Categorical(datarheo.Protocol, categories=['RampBaseline', 'RampTreat', 'RampRecov', 'RampRetreat', 'RampRerecov'], ordered=True)
+datarheo['Group'] = pd.Categorical(datarheo.Group, categories=['Ctrl_RampBaseline', 'Ctrl_RampTreat', 'Ctrl_RampRecov', 'Ctrl_RampRetreat', 'Ctrl_RampRerecov', 'KO_RampBaseline', 'KO_RampTreat', 'KO_RampRecov', 'KO_RampRetreat', 'KO_RampRerecov'], ordered=True)
+#rheocat = pd.api.types.CategoricalDtype(categories=['Ctrl_RampBaseline', 'Ctrl_RampTreat', 'Ctrl_RampRecov', 'Ctrl_RampRetreat', 'Ctrl_RampRerecov', 'KO_RampBaseline', 'KO_RampTreat', 'KO_RampRecov', 'KO_RampRetreat', 'KO_RampRerecov'], ordered=True)
+#datarheo['Group'].astype(rheocat)
 
 datarheostat = pd.DataFrame.merge(datarheoMean, datarheoSEM, on='Group', how='outer', suffixes=('_mean', '_sem')).reset_index()
-datarheostat['Group'] = pd.Categorical(datarheostat.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov'])
+datarheostatdiff = datarheostat.copy().dropna()
+datarheostatdiff['Group'] = pd.Categorical(datarheostatdiff.Group, categories=['Ctrl_RampTreat', 'Ctrl_RampRetreat', 'KO_RampTreat', 'KO_RampRetreat'], ordered=True)
+#datarheostat['Group'] = pd.Categorical(datarheostat.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'CtrlRampRetreat', 'CtrlRampRerecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov', 'KORampRetreat', 'KORampRerecov'])
 
-print('Ctrl Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampBaseline']['Rheobase'], datarheo[datarheo['Group']=='CtrlRampTreat']['Rheobase']))
-print('KO Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='KORampBaseline']['Rheobase'], datarheo[datarheo['Group']=='KORampTreat']['Rheobase']))
-print('Ctrl Treat vs. KO Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['Rheobase'], datarheo[datarheo['Group']=='KORampTreat']['Rheobase']))
-print('Inhib:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['RheoInhibition'], datarheo[datarheo['Group']=='KORampTreat']['RheoInhibition']))
-print('Diff:', '\n', ttest_ind(datarheo[datarheo['Group']=='CtrlRampTreat']['RheoDiff'], datarheo[datarheo['Group']=='KORampTreat']['RheoDiff']))
-datarheostat = datarheostat.drop(datarheostat[datarheostat['Group']=='CtrlRampBaseline'].index)
-datarheostat = datarheostat.drop(datarheostat[datarheostat['Group']=='KORampBaseline'].index)
-datarheo = datarheo.drop(datarheo[datarheo['Group']=='CtrlRampBaseline'].index)
-datarheo = datarheo.drop(datarheo[datarheo['Group']=='KORampBaseline'].index)
+print('Ctrl Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='Ctrl_RampBaseline']['Rheobase'], datarheo[datarheo['Group']=='Ctrl_RampTreat']['Rheobase']))
+print('KO Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='KO_RampBaseline']['Rheobase'], datarheo[datarheo['Group']=='KO_RampTreat']['Rheobase']))
+print('Ctrl Treat vs. KO Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='Ctrl_RampTreat']['Rheobase'], datarheo[datarheo['Group']=='KO_RampTreat']['Rheobase']))
+print('Inhib:', '\n', ttest_ind(datarheo[datarheo['Group']=='Ctrl_RampTreat']['RheoInhibition'], datarheo[datarheo['Group']=='KO_RampTreat']['RheoInhibition']))
+print('Diff:', '\n', ttest_ind(datarheo[datarheo['Group']=='Ctrl_RampTreat']['RheoDiff'], datarheo[datarheo['Group']=='KO_RampTreat']['RheoDiff']))
+#datarheostat = datarheostat.drop(datarheostat[datarheostat['Group']=='CtrlRampBaseline'].index)
+#datarheostat = datarheostat.drop(datarheostat[datarheostat['Group']=='KORampBaseline'].index)
+#datarheo = datarheo.drop(datarheo[datarheo['Group']=='CtrlRampBaseline'].index)
+#datarheo = datarheo.drop(datarheo[datarheo['Group']=='KORampBaseline'].index)
 
 
 
@@ -242,8 +298,8 @@ if bool_id_C3DecayTau:
     fig.savefig(str(path+ '\\id_C3DecayTauByTau.png'), dpi=300)
 
 if bool_id_ramp:
-    id_ramp = (ggplot(data=dataramp, mapping=aes(x='Stim (pA)', y='Inst. Freq. (Hz)', color='Protocol', xmax=2000))
-                    + geom_point(size=.01)
+    id_ramp = (ggplot(data=dataramp, mapping=aes(x='Stim (pA)', y='Inst. Freq. (Hz)', color='Protocol'))
+                    + geom_point(size=.05)
                     + facet_grid('Cell ~ Date', space='free')
                     #+ theme_light()
                     #+ theme(aspect_ratio=2)
@@ -322,8 +378,12 @@ if bool_id_Rheo:
     # group_stimfreq.draw(show=True)
     fig.savefig(str(path + '\\id_Rheo_Means.png'), dpi=300)
 
-if bool_id_RheoInhib:
-    mean_RheoInhibition = (ggplot(data=datarheostat, mapping=aes(x='Group', y='RheoInhibition_mean', color='Group', ymin=0, ymax=100))
+if bool_id_RheoInhibDiff:
+    #First drop extra cats from datarheo points to match datarheostatdiff groups
+    datarheo['Group'] = pd.Categorical(datarheo.Group, categories=['Ctrl_RampTreat', 'Ctrl_RampRetreat', 'KO_RampTreat',
+                                                                   'KO_RampRetreat'], ordered=True)
+    datarheo = datarheo.dropna()
+    mean_RheoInhibition = (ggplot(data=datarheostatdiff, mapping=aes(x='Group', y='RheoInhibition_mean', color='Group', ymin=0, ymax=100))
                  + geom_point(size=1)
                  #                    + stat_summary(geom = "bar", fun_y = np.mean)
                  #                    + stat_summary(geom = "errorbar", fun_data = 'mean_se')
@@ -345,8 +405,7 @@ if bool_id_RheoInhib:
     # group_stimfreq.draw(show=True)
     fig.savefig(str(path + '\\id_RheoInhibition_Means.png'), dpi=300)
 
-if bool_id_RheoDiff:
-    mean_RheoDiff = (ggplot(data=datarheostat,
+    mean_RheoDiff = (ggplot(data=datarheostatdiff,
                                   mapping=aes(x='Group', y='RheoDiff_mean', color='Group', ymin=0, ymax=1000))
                            + geom_point(size=1)
                            #                    + stat_summary(geom = "bar", fun_y = np.mean)
