@@ -3,12 +3,13 @@ import pandas as pd
 import os
 #from scipy import stats as scistat
 import scipy.optimize as opt
-from scipy.stats import sem
+from scipy.stats import sem as scsem
 from scipy.stats import ttest_ind
 from plotnine import *
 from openpyxl import load_workbook
 from functools import reduce
 
+# pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
 path = r'D:\Dropbox (Personal)\FileTransfers\DRG'
 compath = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG\combinedata.xlsx'
@@ -30,10 +31,10 @@ bool_id_HACBase     = 0
 bool_id_C2DecayTau  = 0
 bool_id_C3DecayTau  = 0
 bool_id_ramptime    = 0
-bool_id_ramp        = 1
+bool_id_ramp        = 0
 bool_id_rampfree    = 0
-bool_id_Rheo        = 1
-bool_id_RheoInhibDiff = 1
+bool_id_Rheo        = 0
+bool_id_RheoInhibDiff = 0
 bool_id_genRheoBase = 0
 
 #Rheobase:
@@ -136,7 +137,7 @@ for i in datarheo['CellGroup'].unique():
         dfs.loc[rowretreat, 'RheoInhibition'] = reinhibval*100
     if checktreat or checkretreat:
         dfrheo = pd.concat([dfrheo, dfs], axis=0, ignore_index=True)
-        print(i)
+        #print(i)
 datarheo = dfrheo.copy()
 datarheo.drop(datarheo.columns[datarheo.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True)
 """       
@@ -168,6 +169,44 @@ datarheostat = pd.DataFrame.merge(datarheoMean, datarheoSEM, on='Group', how='ou
 datarheostatdiff = datarheostat.copy().dropna()
 datarheostatdiff['Group'] = pd.Categorical(datarheostatdiff.Group, categories=['Ctrl_RampTreat', 'Ctrl_RampRetreat', 'KO_RampTreat', 'KO_RampRetreat'], ordered=True)
 #datarheostat['Group'] = pd.Categorical(datarheostat.Group, categories=['CtrlRampBaseline', 'CtrlRampTreat', 'CtrlRampRecov', 'CtrlRampRetreat', 'CtrlRampRerecov', 'KORampBaseline', 'KORampTreat', 'KORampRecov', 'KORampRetreat', 'KORampRerecov'])
+
+#Binning for Fits
+datarheonormal = pd.DataFrame()
+datarheobins = pd.DataFrame
+IntervalIndex = []
+for i in range(0, 101, 1):
+    IntervalIndex.append(i * 20)
+#### Ramp Normalizations
+for i in dataramp['ID'].unique():
+    dfs = dataramp[dataramp['ID'] == i]
+    inmin = dfs['Stim (pA)'].min()
+    inmax = dfs['Stim (pA)'].max()
+    dfs['StimNorm'] = dfs['Stim (pA)'].apply(lambda x: (x - inmin) * 100 / (inmax - inmin))
+    datarheonormal = pd.concat([datarheonormal, dfs], axis=0, ignore_index=True)
+
+    bins = pd.cut(dfs['Stim (pA)'], IntervalIndex)
+    dfs['Stim (pA)'].groupby(bins).mean()
+#____
+#i = dataramp['Group'].unique()[1]
+#df = dataramp[dataramp['Group'] == i]
+#bins = pd.cut(df['Stim (pA)'], IntervalIndex)
+#print(df['Inst. Freq. (Hz)'].groupby(bins).agg([np.count_nonzero, np.mean]))
+
+###### Groupby stim bins -> graphpad data
+#datarampbins = pd.DataFrame()
+dataramp['Group'] = dataramp.apply(lambda x: '%s_%s' % (x['Genotype'], x['Protocol']), axis=1) #String concat
+writer = pd.ExcelWriter(path + '\\' + 'rampbins.xlsx', engine='openpyxl')
+for i in dataramp['Group'].unique():
+    df = dataramp[dataramp['Group'] == i]
+    bins = pd.cut(df['Stim (pA)'], IntervalIndex)
+    #df[['Date', 'Genotype', 'Cell', 'Protocol', 'Group', 'ID', 'Inst. Freq. (Hz)', ]].groupby(bins)
+    df = df[['Date', 'Genotype', 'Cell', 'Protocol', 'Group', 'ID', 'Inst. Freq. (Hz)', ]].groupby(bins).agg({'Inst. Freq. (Hz)':['count', scsem, 'mean', (lambda x: tuple(x))], 'ID':(lambda x: tuple(x))})
+    #datarampbins = pd.concat([datarampbins, df], axis=0, ignore_index=True)
+    df.columns = ["_".join(x) for x in df.columns.to_flat_index()] #Flatten multindex by joining colnames
+    df2 = df['Inst. Freq. (Hz)_<lambda_0>'].apply(pd.Series)
+    df = pd.concat((df, df2), axis='columns')
+    df.to_excel(writer, i)
+writer.save()
 
 print('Ctrl Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='Ctrl_RampBaseline']['Rheobase'], datarheo[datarheo['Group']=='Ctrl_RampTreat']['Rheobase']))
 print('KO Baseline vs. Treat:', '\n', ttest_ind(datarheo[datarheo['Group']=='KO_RampBaseline']['Rheobase'], datarheo[datarheo['Group']=='KO_RampTreat']['Rheobase']))
@@ -304,7 +343,8 @@ if bool_id_ramp:
                     #+ theme_light()
                     #+ theme(aspect_ratio=2)
                     + theme(subplots_adjust={'right': 0.75})
-                    + theme(strip_text_y= element_text(angle = 0, ha = 'left')))
+                    + theme(strip_text_y= element_text(angle = 0, ha = 'left'))
+                    + theme(figure_size=(25, 20)))
     fig = id_ramp.draw()
     #fig.set_size_inches(9, 108, forward=True)
     #group_stimfreq.draw(show=True)
