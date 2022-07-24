@@ -14,8 +14,7 @@ group_paths = group_paths[1:] # Slice removes root folder PyRheo leaving only su
 group_parmpaths = []
 group_dict = {}
 
-# todo: fix day merge. Perhaps find a way to input unique ID's at beginning of parse, and merge from those?
-#  Not sure if day_x or day_y or neither is correct. Appear to have duplicate values...
+#Fix day merge
 plotbool = input('Generate plots? y/n: ')
 
 pd.set_option("display.max_columns", None)
