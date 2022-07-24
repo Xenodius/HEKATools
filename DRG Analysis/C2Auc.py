@@ -1,4 +1,5 @@
-import pyabf as pa
+#import pyabf as pa
+import csv
 import numpy as np
 from scipy import integrate
 import os
@@ -6,8 +7,38 @@ import glob
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+pd.set_option("display.max_columns", None)
 
-path = r'C:\Program Files (x86)\HEKA2x91\Data\YM'
+path = r'C:\Users\ckowalski\Dropbox\FileTransfers\YM'
+
+#C3Amp
+walk = [x for x in os.walk(path)][0][1]
+c3d = {}
+output = pd.DataFrame()
+
+for i in walk:
+    files = glob.glob(path + '\\' + i + '\\*C3amp*')
+    if files:
+        c3d[i] = files
+
+for date, files in c3d.items():
+    for file in files:
+        with open(file, mode='rU') as infile:
+            df = pd.read_csv(file, header=3, delimiter='\t', names=['File', 'Trace', 'Trace Start', 'R2S1 Antipeak', 'R1S1 Mean', 'R2S1 Mean', 'File Path'])
+            df['Date'] = date
+            output = pd.concat([output, df], ignore_index=True, axis=0)
+
+
+c2d = pd.read_excel(path+'\\finaldata_combined.xlsx', sheet_name='C2Amp', engine='openpyxl')
+c2d['JoinIndex'] = c2d['Date'] + '_' + c2d['File Name'].astype('string')
+output['JoinIndex'] = output['Date'] + '_' + output['File'].astype('string')
+finaldata = c2d.join(output, on='JoinIndex', how='right', lsuffix='_c2', rsuffix='_c3')
+
+writer = pd.ExcelWriter(path + '\\c3amp.xlsx', engine='xlsxwriter')
+output.to_excel(writer, 'c3amp')
+finaldata.to_excel(writer, 'join')
+writer.save()
+
 plot = True
 
 def ms(milli):
