@@ -9,6 +9,9 @@ from plotnine import *
 from openpyxl import load_workbook
 from functools import reduce
 
+# Working directory
+path = r''
+
 def find_nth(hay, needle, n):  # Helper string parsing-- index of nth instance of character 'needle' string 'haystack'
     start = hay.find(needle)
     while start >= 0 and n > 1:
@@ -16,7 +19,6 @@ def find_nth(hay, needle, n):  # Helper string parsing-- index of nth instance o
         n -= 1
     return start
 
-path =
 files = []
 for i in os.walk(path):
     files.append(i)
