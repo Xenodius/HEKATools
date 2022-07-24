@@ -3,7 +3,8 @@ import pandas as pd
 import glob
 import os
 import sys
-# Enable/disable all rows/columns or columns
+
+# Enable/disable printing all rows/columns or columns of dataframe
 # pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
 #path = r'C:\Users\ckowalski\Dropbox\FileTransfers\DRG'
@@ -14,22 +15,12 @@ RampConvDict = {'DRG-CRamp.atf': 3, 'DRG-FRamp.atf': .3, 'DRG-MRamp': 1, 'DRG-MR
 # Walk the path
 walk = [x for x in os.walk(path)] #1= dirpath, 2 = dirnames, 3 = filenames
 groupFolders = walk[0][1] # dirnames in path
-#todo: verify latest set DRG-1Ramp vs DRG-2Ramp time.
 
 #### Notes on Analysis
-# Requires:
-# Ramp ATF's
-# C2 Tau ATF's (DAC Decay first order exponential Tau)
-# C3 Tau ATF's (AP Decay fastest of 2nd order exponential Tau)
-## C1-HAC-TC xlsx with heading:
-# File Name	Trace	Trace Start	R1S1Peak	R3S1Peak	R3S1Antipeak	R1S1Mean	R2S1Mean	R3S1Mean	FilePath
-# R1 = HAC Peak, R2 = HAC Steady-state, R3 = Transient peak
-## C2-DAC xslx with heading:
-# FileName	Trace	TraceStart	R1S1Peak	R3S1Peak	R1S1Antipeak	R3S1Antipeak	R1S1Mean	R2S1Mean	R3S1Mean	FilePath
-# R1 = DAC Peak, R2 = DAC steady-state, R3 = Transient peak
 
 
-#csv fix
+
+#If accidentally exported as .csv;
 """
 walk = [x for x in os.walk(path + '\\9-7_T1')]
 wlk = []
