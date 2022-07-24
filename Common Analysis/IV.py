@@ -7,12 +7,6 @@ import os
 import xlsxwriter
 from plotnine import *
 
-# todo: fix day merge. Perhaps find a way to input unique ID's at beginning of parse, and merge from those?
-#  Not sure if day_x or day_y or neither is correct. Appear to have duplicate values...
-plotbool = input('Generate plots? y/n: ')
-
-pd.set_option("display.max_columns", None)
-
 #Search path
 path = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo'
 group_paths = [x[0] for x in os.walk(path)]
@@ -20,10 +14,14 @@ group_paths = group_paths[1:] # Slice removes root folder PyRheo leaving only su
 group_parmpaths = []
 group_dict = {}
 
+#Fix day merge
+plotbool = input('Generate plots? y/n: ')
+
+pd.set_option("display.max_columns", None)
+
 for count, i in enumerate(group_paths):
     group_parmpaths.append(i + '\\parameters.xlsx')
     group_dict[count] = os.path.basename(i)
-
 
 def find_nth(hay, needle, n):  # Helper string parsing-- index of nth instance of character 'needle' string 'haystack'
     start = hay.find(needle)
@@ -76,7 +74,6 @@ parameters = parse_parameters(group_parmpaths)
 ivdf = parse_IV(path + '\\IV.xlsx', parameters)
 
 # Write sheet to enter groups
-# Todo: only ask for template if no groups.xlsx
 group_bool = os.path.exists(path + '\\groups.xlsx')
 if group_bool:
     print('Groups.xlsx, detected, importing...')

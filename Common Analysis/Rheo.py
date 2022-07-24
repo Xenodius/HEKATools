@@ -19,8 +19,10 @@ import pdb
 # Subfolder names are expected to be the date of the experiment.
 
 
+#  if duplicate rows for each event from event columns-- split DF and drop_duplicates the main longframe.
+
 #Search path
-path = r'C:\Users\ckowalski\Dropbox\FileTransfers\Go basal parameters'
+path = r'C:\Program Files (x86)\HEKA2x903\Data\PyRheo'
 group_paths = [x[0] for x in os.walk(path)]
 group_paths = group_paths[1:] # Slice removes root folder PyRheo leaving only subdirectories in PyRheo
 group_atfpaths = []
@@ -58,7 +60,14 @@ for i in infilepath:
 
 
 # Vars
-stimfactor = 5  # Stimulus per sweep, in pA
+stimfactor = 20  # Stimulus per sweep, in pA
+
+#Rheo20s Trace->Stim dictionary map
+val = -200
+stimdict = {}
+for i in range(1, 42):
+    stimdict[i] = (val + (i - 1) * 20)
+
 # "ID" map to group, e.g. 10-21_1_002-Rheo5 : KO_Baseline
 #### Used .atf's filenames instead. For others, sweep.xlsx from parameters?
 """id_group = {'10-28_0_003-Rheo5': 'Ctrl_Baseline',
@@ -79,12 +88,15 @@ print('id_group: ', id_group)"""
 # pd.set_option("display.max_rows", None, "display.max_columns", None)
 pd.set_option("display.max_columns", None)
 
-
+## !!!!!! ADJUST
+#adjustpath = path + '\\output.xlsx'
+#xls = pd.ExcelFile(adjustpath, engine='openpyxl')
+#rheobase = pd.read_excel(xls, 'Rheobase')
 
 def sweepfile_parser(group, infile, sweepname):
     eventdata = pd.read_csv(infile, sep='	', header=2, index_col=False, encoding='cp1252')
     sweepfile = path + '\\' + group_dict[group] + '\\sweep.xlsx'
-    sweepdata = pd.read_excel(sweepfile)
+    sweepdata = pd.read_excel(sweepfile, engine='openpyxl')
     #print('Sweepdata: ', '\n', sweepdata)
     #print('Sweepname: ', sweepname)
     sweepdata = sweepdata[sweepdata['FileName'].str.contains(sweepname)] # sweepname[find_nth(sweepname, '_', 2)+1:]
@@ -122,8 +134,17 @@ def sweepfile_parser(group, infile, sweepname):
     # print('Outdata merging sweepdata: ', '\n', outdata)
     # Generate pA stim based on protocol (5pA per step)
     # print('Outdata: ', outdata)
+
+    ## !!!!!!!!!!! ADJUST
+    #CellID = '\'' + os.path.splitext(os.path.basename(inputfile))[0] + '\''
+    #mask = rheobase['ID'] == CellID
+    #adjust_value = int(rheobase[mask]['rheo_adj'])
+    #print('Adj:', adjust_value, CellID)
+
     try:
-        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor, axis=1))
+        #outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace*stimfactor + adjust_value, axis=1))
+        #outdata.insert(1, 'stim_pA', outdata.apply(lambda row: row.Trace * stimfactor, axis=1))
+        outdata.insert(1, 'stim_pA', outdata.apply(lambda row: stimdict[row.Trace], axis=1))
     except ValueError:
         print('Value Error. Likely incorrect naming convention or unmatched files. \n', 'Sweep file: ', sweepfile, '\n',
               'Input file: ', infile, '\n', 'Sweep data: ', sweepdata, '\n', 'Outdata: ', outdata, '\n',
@@ -203,6 +224,7 @@ for group, dir in enumerate(group_atfpaths):
 
 # Convert summary page 0's to NaN for means/empty cells
 longframenan = longframe.replace(0, np.NaN) # Convert placeholders to NaN for summary statistics
+sweepframenan = longframenan.drop_duplicates(subset=['ID', 'Trace']).copy()
 # Split group ID into genotype, treatment 'group'. Convert to category to reorder for plotnine facets.
 # longframenan['genotype'] = longframenan['group'].apply(lambda x: x[:2]) # Performed above instead
 
@@ -238,8 +260,6 @@ for id in longframenan['group'].unique():
 #Gather rheobases
 rheovoltdict = {}
 rheobasedict = {}
-# todo: This is broken because identical filenames are replacing each other.
-#  Need to use an 'atf' like ID as key instead. Move left?
 for key in datakeys:
     rheodf = datadict[key].replace(0, np.NaN)
     rheoID = str(rheodf['ID'].unique())
@@ -268,8 +288,9 @@ rheodf.insert(0, 'date', rheodf['ID'].apply(lambda x: x[1:find_nth(x, '_', 1)]))
 
 
 #Write to file
-writer = pd.ExcelWriter(summaryfilepath, engine='xlsxwriter')
-longframenan.to_excel(writer, 'Longform Data', index=False)
+writer = pd.ExcelWriter(summaryfilepath, engine='openpyxl')
+longframenan.to_excel(writer, 'Event Data', index=False)
+sweepframenan.to_excel(writer, 'Sweep Data', index=False)
 lf_means.to_excel(writer, 'Means')
 rheodf.to_excel(writer, 'Rheobase')
 writer.save()
@@ -278,72 +299,4 @@ writer.save()
 rheo_df.to_excel(writer, 'Rheobase')
 writer.save()"""
 
-#Plots
-# Stimulus frequency response
-"""for key in cell_df_dict:
-    stimhz = (ggplot(cell_df_dict[key], aes('stim_pA', 'frequency', color='ID'))
-                    + geom_point()
-                    + facet_grid('ID ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = stimhz.draw()
-    fig.savefig(str(path+ '\\cell_stimfreq_' + key + '.png'))"""
-
-# Stimulus frequency response Groups
-group_stimfreq = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='frequency', color='ID'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_stimfreq.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_stimfreq_alt.png'), dpi=1000)
-
-group_voltfreq = (ggplot(data=longframenan, mapping=aes(x='R1S1Mean', y='frequency', color='ID'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_voltfreq.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_voltfreq_alt.png'), dpi=1000)
-
-group_stimspikenum = (ggplot(data=longframenan, mapping=aes(x='stim_pA', y='spikenum', color='ID'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_stimspikenum.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_stimnum_alt.png'), dpi=1000)
-
-#Stimulus frequency response means of each unique Trace(row) x Genotype x Group combination
-group_stimfreq_means = (ggplot(data=lf_means, mapping=aes(x='stim_pA', y='frequency', color='genotype'))
-                + geom_point(size=0.1)
-                + facet_grid('genotype ~ group', space='free')
-                + theme_light())
-fig = group_stimfreq_means.draw()
-fig.set_size_inches(15,6, forward=True)
-fig.savefig(str(path+ '\\group_stimfreq_means_alt.png'), dpi=1000)
-
-"""for key in group_df_dict:
-    stimhz = (ggplot(group_df_dict[key], aes('stim_pA', 'frequency', color='cell'))
-                    + geom_point()
-                    + facet_grid('group ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = stimhz.draw()
-    fig.savefig(str(path+ '\\group_stimfreq_' + key + '.png'))"""
-
-# Membrane potential frequency response
-"""for key in cell_df_dict:
-    sweepfreq = (ggplot(cell_df_dict[key], aes('R1S1Mean', 'frequency', color='ID'))
-                    + geom_point()
-                    + facet_grid('ID ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = sweepfreq.draw()
-    fig.savefig(str(path+ '\\cell_sweepfreq_' + key + '.png'))
-# Stimulus spike# response
-for key in cell_df_dict:
-    sweepfreq = (ggplot(cell_df_dict[key], aes('stim_pA', 'spikenum', color='ID'))
-                    + geom_point()
-                    + facet_grid('ID ~ .')
-                    + theme(aspect_ratio=1/3))
-    fig = sweepfreq.draw()
-    fig.savefig(str(path+ '\\cell_stimnum_' + key + '.png'))"""
 

@@ -7,8 +7,7 @@ import os
 import xlsxwriter
 from plotnine import *
 
-# todo: fix day merge. Perhaps find a way to input unique ID's at beginning of parse, and merge from those?
-#  Not sure if day_x or day_y or neither is correct. Appear to have duplicate values...
+# fix day merge
 plotbool = input('Generate plots? y/n: ')
 
 pd.set_option("display.max_columns", None)
@@ -81,7 +80,7 @@ parameters = parse_parameters(group_parmpaths)
 ivdf = parse_IV(path + '\\IV.xlsx', parameters)
 
 # Write sheet to enter groups
-# Todo: only ask for template if no groups.xlsx
+# only ask for template if no groups.xlsx
 group_bool = os.path.exists(path + '\\groups.xlsx')
 if group_bool:
     print('Groups.xlsx, detected, importing...')
